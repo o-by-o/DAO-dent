@@ -1,0 +1,217 @@
+name: Deploy School Cosmo
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: school-cosmo-production
+  cancel-in-progress: true
+
+env:
+  DEPLOY_PATH: /home/deploy/dibinterfarm
+  APP_REPO_PATH: /home/deploy/dibinterfarm/db-interfarm
+  DEPLOY_ENV_PATH: /home/deploy/dibinterfarm/db-interfarm/deploy/.env
+  DEPLOY_COMPOSE_PATH: /home/deploy/dibinterfarm/db-interfarm/deploy/docker-compose.yml
+  DEPLOY_NGINX_CONF_DIR: /home/deploy/dibinterfarm/db-interfarm/deploy/nginx/conf.d
+  DEPLOY_NGINX_TEMPLATES_DIR: /home/deploy/dibinterfarm/db-interfarm/deploy/nginx/templates
+  DEPLOY_CERTBOT_CONF_DIR: /home/deploy/dibinterfarm/db-interfarm/deploy/certbot/conf
+  COMPOSE_PROJECT_NAME: dbinterfarm
+  APP_DOMAIN: dibinterfarm.ru
+  APP_DOMAIN_WWW: www.dibinterfarm.ru
+
+jobs:
+  deploy:
+    name: Deploy To Frontend VM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          MUX_TOKEN_ID: ${{ secrets.MUX_TOKEN_ID }}
+          MUX_TOKEN_SECRET: ${{ secrets.MUX_TOKEN_SECRET }}
+          MUX_WEBHOOK_SECRET: ${{ secrets.MUX_WEBHOOK_SECRET }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          VK_ACCESS_TOKEN: ${{ secrets.VK_ACCESS_TOKEN }}
+          VK_GROUP_ID: ${{ secrets.VK_GROUP_ID }}
+          POSTBOX_ACCESS_KEY_ID: ${{ secrets.POSTBOX_ACCESS_KEY_ID }}
+          POSTBOX_SECRET_ACCESS_KEY: ${{ secrets.POSTBOX_SECRET_ACCESS_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          PAYMENT_WEBHOOK_SECRET: ${{ secrets.PAYMENT_WEBHOOK_SECRET }}
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+          APP_REPO_PATH: ${{ env.APP_REPO_PATH }}
+          DEPLOY_ENV_PATH: ${{ env.DEPLOY_ENV_PATH }}
+          DEPLOY_COMPOSE_PATH: ${{ env.DEPLOY_COMPOSE_PATH }}
+          DEPLOY_NGINX_CONF_DIR: ${{ env.DEPLOY_NGINX_CONF_DIR }}
+          DEPLOY_NGINX_TEMPLATES_DIR: ${{ env.DEPLOY_NGINX_TEMPLATES_DIR }}
+          DEPLOY_CERTBOT_CONF_DIR: ${{ env.DEPLOY_CERTBOT_CONF_DIR }}
+          COMPOSE_PROJECT_NAME: ${{ env.COMPOSE_PROJECT_NAME }}
+          APP_DOMAIN: ${{ env.APP_DOMAIN }}
+          APP_DOMAIN_WWW: ${{ env.APP_DOMAIN_WWW }}
+          REPO_SLUG: ${{ github.repository }}
+        with:
+          host: 51.250.88.91
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          envs: DATABASE_URL,NEXTAUTH_URL,NEXTAUTH_SECRET,MUX_TOKEN_ID,MUX_TOKEN_SECRET,MUX_WEBHOOK_SECRET,DEEPSEEK_API_KEY,OPENAI_API_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_CHANNEL_ID,VK_ACCESS_TOKEN,VK_GROUP_ID,POSTBOX_ACCESS_KEY_ID,POSTBOX_SECRET_ACCESS_KEY,EMAIL_FROM,PAYMENT_WEBHOOK_SECRET,DEPLOY_PATH,APP_REPO_PATH,DEPLOY_ENV_PATH,DEPLOY_COMPOSE_PATH,DEPLOY_NGINX_CONF_DIR,DEPLOY_NGINX_TEMPLATES_DIR,DEPLOY_CERTBOT_CONF_DIR,COMPOSE_PROJECT_NAME,APP_DOMAIN,APP_DOMAIN_WWW,REPO_SLUG
+          script: |
+            set -Eeuo pipefail
+
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "Docker is not installed on target VM"
+              exit 1
+            fi
+
+            # Pull repo via SSH deploy key stored on the VM (avoids expiring PAT secrets).
+            GITHUB_DEPLOY_KEY="${HOME}/.ssh/github_db_interfarm"
+            if [ ! -f "${GITHUB_DEPLOY_KEY}" ]; then
+              echo "Missing GitHub deploy key at ${GITHUB_DEPLOY_KEY}."
+              echo "Add it as a Deploy Key for https://github.com/${REPO_SLUG} and re-run deploy."
+              exit 1
+            fi
+            chmod 600 "${GITHUB_DEPLOY_KEY}"
+            mkdir -p "${HOME}/.ssh"
+            touch "${HOME}/.ssh/known_hosts"
+            ssh-keyscan -H github.com >> "${HOME}/.ssh/known_hosts" 2>/dev/null || true
+            export GIT_SSH_COMMAND="ssh -i ${GITHUB_DEPLOY_KEY} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${HOME}/.ssh/known_hosts"
+
+            if docker compose version >/dev/null 2>&1; then
+              compose() { docker compose "$@"; }
+            elif command -v docker-compose >/dev/null 2>&1; then
+              compose() { docker-compose "$@"; }
+            else
+              sudo apt-get update -y
+              if sudo apt-get install -y docker-compose-plugin; then
+                compose() { docker compose "$@"; }
+              elif sudo apt-get install -y docker-compose; then
+                compose() { docker-compose "$@"; }
+              else
+                echo "Could not install docker compose tooling on target VM"
+                exit 1
+              fi
+            fi
+
+            compose version >/dev/null 2>&1
+            export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-dbinterfarm}"
+
+            mkdir -p "${DEPLOY_PATH}"
+            AUTH_REPO_URL="git@github.com:${REPO_SLUG}.git"
+            if [ ! -d "${APP_REPO_PATH}/.git" ]; then
+              git clone "${AUTH_REPO_URL}" "${APP_REPO_PATH}"
+            fi
+
+            mkdir -p "$(dirname "${DEPLOY_ENV_PATH}")" "${DEPLOY_NGINX_CONF_DIR}" "${DEPLOY_CERTBOT_CONF_DIR}"
+            umask 077
+            printf '%s\n' \
+              "DATABASE_URL=${DATABASE_URL}" \
+              "NEXTAUTH_URL=${NEXTAUTH_URL}" \
+              "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
+              "AUTH_TRUST_HOST=true" \
+              "MUX_TOKEN_ID=${MUX_TOKEN_ID}" \
+              "MUX_TOKEN_SECRET=${MUX_TOKEN_SECRET}" \
+              "MUX_WEBHOOK_SECRET=${MUX_WEBHOOK_SECRET}" \
+              "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}" \
+              "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+              "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}" \
+              "TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}" \
+              "VK_ACCESS_TOKEN=${VK_ACCESS_TOKEN}" \
+              "VK_GROUP_ID=${VK_GROUP_ID}" \
+              "POSTBOX_ACCESS_KEY_ID=${POSTBOX_ACCESS_KEY_ID}" \
+              "POSTBOX_SECRET_ACCESS_KEY=${POSTBOX_SECRET_ACCESS_KEY}" \
+              "EMAIL_FROM=${EMAIL_FROM}" \
+              "PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET}" \
+              > "${DEPLOY_ENV_PATH}"
+            chmod 600 "${DEPLOY_ENV_PATH}"
+
+            cd "${APP_REPO_PATH}"
+            git remote set-url origin "${AUTH_REPO_URL}"
+            git fetch --prune origin main
+            git checkout main
+            git reset --hard origin/main
+
+            UPLOADS_DIR="${APP_REPO_PATH}/deploy/uploads/lesson-materials"
+            sudo mkdir -p "${UPLOADS_DIR}"
+            sudo chmod 0777 "${APP_REPO_PATH}/deploy/uploads" "${UPLOADS_DIR}" || true
+
+            CERT_FILE="${DEPLOY_CERTBOT_CONF_DIR}/live/${APP_DOMAIN}/fullchain.pem"
+            if sudo test -f "${CERT_FILE}"; then
+              echo "Using existing certificate at ${CERT_FILE}; enabling HTTPS nginx config."
+              cp "${DEPLOY_NGINX_TEMPLATES_DIR}/dibinterfarm-https.conf" "${DEPLOY_NGINX_CONF_DIR}/dibinterfarm.conf"
+            else
+              echo "No certificate at ${CERT_FILE}; keeping HTTP nginx config."
+              cp "${DEPLOY_NGINX_TEMPLATES_DIR}/dibinterfarm-http.conf" "${DEPLOY_NGINX_CONF_DIR}/dibinterfarm.conf"
+            fi
+
+            if sudo systemctl is-active --quiet nginx; then
+              sudo systemctl stop nginx
+            fi
+            if sudo systemctl is-enabled --quiet nginx; then
+              sudo systemctl disable nginx || true
+            fi
+
+            for container in $(docker ps -a --format '{{.Names}}' | grep -E '(^school-cosmo$|_school-cosmo$|^nginx-proxy$|_nginx_1$|^certbot$|_certbot_1$)' || true); do
+              docker rm -f "${container}" || true
+            done
+
+            echo "Disk usage before Docker cleanup:"
+            df -h /
+            docker system df || true
+
+            # Prevent build failures due to limited disk on the VM.
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+            docker volume prune -f || true
+
+            echo "Disk usage after Docker cleanup:"
+            df -h /
+            docker system df || true
+
+            BUILD_TIMEOUT_SECONDS=1500
+            compose -f "${DEPLOY_COMPOSE_PATH}" build --pull school-cosmo &
+            BUILD_PID=$!
+            ELAPSED=0
+            while kill -0 "${BUILD_PID}" 2>/dev/null; do
+              sleep 5
+              ELAPSED=$((ELAPSED + 5))
+              if [ "${ELAPSED}" -ge "${BUILD_TIMEOUT_SECONDS}" ]; then
+                echo "compose build timed out after ${BUILD_TIMEOUT_SECONDS}s"
+                kill -TERM "${BUILD_PID}" 2>/dev/null || true
+                sleep 10
+                kill -KILL "${BUILD_PID}" 2>/dev/null || true
+                wait "${BUILD_PID}" || true
+                exit 1
+              fi
+            done
+            wait "${BUILD_PID}"
+            compose -f "${DEPLOY_COMPOSE_PATH}" up -d --force-recreate school-cosmo nginx
+            compose -f "${DEPLOY_COMPOSE_PATH}" exec -T --user root school-cosmo node node_modules/prisma/build/index.js db push --skip-generate
+
+            if sudo test -f "${CERT_FILE}"; then
+              echo "Using existing certificate at ${CERT_FILE}; enabling HTTPS nginx config."
+              cp "${DEPLOY_NGINX_TEMPLATES_DIR}/dibinterfarm-https.conf" "${DEPLOY_NGINX_CONF_DIR}/dibinterfarm.conf"
+            else
+              echo "No certificate at ${CERT_FILE}; keeping HTTP nginx config."
+              cp "${DEPLOY_NGINX_TEMPLATES_DIR}/dibinterfarm-http.conf" "${DEPLOY_NGINX_CONF_DIR}/dibinterfarm.conf"
+            fi
+            compose -f "${DEPLOY_COMPOSE_PATH}" up -d --no-deps certbot
+            compose -f "${DEPLOY_COMPOSE_PATH}" exec -T nginx nginx -t
+            compose -f "${DEPLOY_COMPOSE_PATH}" exec -T nginx nginx -s reload
+
+            docker image prune -f
+
+            echo "Deploy completed at $(date)"
+            echo "Current commit: $(cd "${APP_REPO_PATH}" && git rev-parse --short HEAD)"
+            compose -f "${DEPLOY_COMPOSE_PATH}" ps

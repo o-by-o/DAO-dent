@@ -1,0 +1,47 @@
+# Локальная разработка — PostgreSQL + OpenClaw + MCP
+# Запуск: docker compose -f docker-compose.dev.yml up -d
+# Next.js: pnpm dev (в db-interfarm)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: school-cosmo-db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: school_cosmo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  openclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile.openclaw
+    image: dib-openclaw:local
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18789:18789"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/school_cosmo
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-dib-openclaw-dev-token}
+      OPENCLAW_HOME: /home/node/.openclaw
+    volumes:
+      - ./openclaw-config:/home/node/.openclaw
+      - ./openclaw-dib-plugin:/app/plugin:ro
+    entrypoint: ["/usr/local/bin/openclaw"]
+    # Dev: --allow-unconfigured для быстрого старта без полного конфига.
+    # Prod: используй docker-compose.prod.yml без этого флага.
+    command: ["gateway", "run", "--allow-unconfigured"]
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    name: school-cosmo_postgres_data
+  openclaw_config:

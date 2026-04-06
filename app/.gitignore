@@ -1,0 +1,32 @@
+# v0 runtime files (should only exist in preview, not in git)
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+instrumentation-client.js
+instrumentation-client.ts
+
+# Common ignores
+node_modules/
+.next/
+.env
+.env*.local
+.DS_Store
+*.tsbuildinfo
+prisma/*.db
+mux-access-token-*.env
+
+# Runtime deploy artifacts
+deploy/nginx/conf.d/*.conf
+!deploy/nginx/conf.d/.gitkeep
+deploy/certbot/conf/*
+!deploy/certbot/conf/.gitkeep
+deploy/certbot/www/*
+!deploy/certbot/www/.gitkeep
+deploy/uploads/*
+!deploy/uploads/.gitkeep
+
+# User-uploaded course covers (stored in public so they are served statically)
+public/uploads/
+
+# Agent chat temp images
+uploads/

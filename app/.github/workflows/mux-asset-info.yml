@@ -1,0 +1,44 @@
+# Ручной запуск: детали по ассетам Mux (длительность, дата, passthrough).
+# Actions → Mux asset info → Run workflow
+name: Mux asset info
+
+on:
+  workflow_dispatch:
+
+env:
+  APP_REPO_PATH: /home/deploy/dibinterfarm/db-interfarm
+  DEPLOY_ENV_PATH: /home/deploy/dibinterfarm/db-interfarm/deploy/.env
+
+jobs:
+  asset-info:
+    name: Run mux:asset-info on server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run mux:asset-info on server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 51.250.88.91
+          username: deploy
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          command_timeout: 5m
+          envs: APP_REPO_PATH,DEPLOY_ENV_PATH
+          script: |
+            set -e
+            if [ ! -f "${DEPLOY_ENV_PATH}" ]; then
+              echo "No .env on server (run deploy first). DEPLOY_ENV_PATH=${DEPLOY_ENV_PATH}"
+              exit 1
+            fi
+            if [ ! -d "${APP_REPO_PATH}/scripts" ]; then
+              echo "No repo/scripts on server. APP_REPO_PATH=${APP_REPO_PATH}"
+              exit 1
+            fi
+            echo "Running mux:asset-info (Node in Docker, env from deploy .env)..."
+            docker run --rm \
+              -v "${APP_REPO_PATH}:/app" \
+              -w /app \
+              --env-file "${DEPLOY_ENV_PATH}" \
+              node:22-alpine \
+              sh -c "corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile && pnpm mux:asset-info"
+            echo "Done."

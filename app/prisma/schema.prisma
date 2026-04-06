@@ -1,0 +1,629 @@
+// ============================================
+// Prisma Schema — Школа косметологов DIB Academy
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Пользователи и авторизация
+// ============================================
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  hashedPassword String
+  role           Role      @default(STUDENT)
+  avatarUrl      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Связи
+  enrollments    Enrollment[]
+  progress      Progress[]
+  homeworks     Homework[]
+  comments      Comment[]
+  certificates  Certificate[]
+  clientRecords  Client[]  @relation("ClientUser")   // CRM: запись как клиент
+  ownedClients   Client[]  @relation("ClientOwner")  // Мои клиенты (я — косметолог)
+  stockDocuments StockDocument[]   // Склад: документы, созданные пользователем
+  agentConversations AgentConversation[]
+  skinAnalyses       SkinAnalysis[]
+  orders             Order[]
+  plannerNotes       PlannerNote[]
+
+  @@map("users")
+}
+
+// ============================================
+// Агент: история переписок (OpenClaw)
+// ============================================
+
+model AgentConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("Новый чат")
+  messages  Json     @default("[]") // UIMessage[] из AI SDK
+  activeCourse Json?
+  attachments Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("agent_conversations")
+}
+
+// ============================================
+// CRM: Клиентская база
+// ============================================
+
+enum ClientSource {
+  WEBSITE_USER   // ученик/покупатель с сайта
+  MESSENGER_LEAD // заявка из мессенджера
+  MANUAL         // ручной ввод
+}
+
+enum LeadChannel {
+  TELEGRAM
+  WHATSAPP
+  WEB_FORM
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  CLOSED
+}
+
+model Client {
+  id         String       @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  birthDate  DateTime?    // дата рождения
+  source     ClientSource  @default(MANUAL)
+  externalId String?       // id в мессенджере или userId
+  userId     String?       @unique // связь с пользователем кабинета
+  ownerId    String?       // косметолог, которому принадлежит клиент
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  user  User?  @relation("ClientUser", fields: [userId], references: [id], onDelete: SetNull)
+  owner User?  @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  leads Lead[]
+  notes ClientNote[]
+
+  @@map("clients")
+}
+
+model ClientNote {
+  id        String    @id @default(cuid())
+  clientId  String
+  text      String    @db.Text
+  callAt    DateTime? // время звонка/напоминания → календарь
+  createdAt DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("client_notes")
+}
+
+model Lead {
+  id               String      @id @default(cuid())
+  clientId        String?
+  channel         LeadChannel  @default(OTHER)
+  externalThreadId String?
+  rawMessage      String?
+  status          LeadStatus   @default(NEW)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@map("leads")
+}
+
+// ============================================
+// Склад: товары, склады, партии, остатки, документы
+// ============================================
+
+enum ProductUnit {
+  PCS   // штуки
+  PACK  // упаковка
+  ML    // миллилитры
+  G     // граммы
+  L     // литры
+  KG    // килограммы
+}
+
+enum WarehouseType {
+  MAIN    // основной склад
+  RETAIL  // точка продаж
+  TRANSIT // транзитный
+}
+
+enum StockDocumentType {
+  RECEIPT    // приход
+  WRITE_OFF  // расход
+  TRANSFER   // перемещение
+  INVENTORY  // инвентаризация
+}
+
+enum StockDocumentStatus {
+  DRAFT
+  POSTED
+}
+
+enum StockMovementType {
+  RECEIPT
+  SHIPMENT
+  TRANSFER
+  ADJUSTMENT
+}
+
+// ============================================
+// Витрина магазина (категории)
+// ============================================
+
+model StoreCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  order     Int      @default(0)
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent   StoreCategory?  @relation("CategoryChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children StoreCategory[] @relation("CategoryChildren")
+  products Product[]
+
+  @@map("store_categories")
+}
+
+// ============================================
+// Редактируемый контент сайта (OpenClaw, админка)
+// ============================================
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  key       String   @unique // hero_title, shop_subtitle, footer_phone, etc.
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("site_content")
+}
+
+// ============================================
+// Склад: товары, склады, партии, остатки, документы
+// ============================================
+
+model Product {
+  id          String      @id @default(cuid())
+  sku         String      @unique
+  name        String
+  unit        ProductUnit @default(PCS)
+  trackBatch  Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Витрина магазина
+  description String?
+  price       Decimal?    @db.Decimal(10, 2) // цена в рублях, null = не для продажи
+  imageUrl    String?
+  slug        String?     @unique // для /shop/[slug], генерируется из name
+  published   Boolean     @default(false) // показывать на витрине
+  order       Int         @default(0) // порядок отображения
+  categoryId  String?
+  brand       String?     // производитель: Dr.PaceLeader, DERMACHIC, CreBeau
+
+  category   StoreCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  batches    Batch[]
+  stocks     Stock[]
+  movements  StockMovement[]
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+model Warehouse {
+  id        String         @id @default(cuid())
+  name      String
+  type      WarehouseType  @default(MAIN)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  stocks    Stock[]
+  movements StockMovement[]
+
+  @@map("warehouses")
+}
+
+model Batch {
+  id           String    @id @default(cuid())
+  productId    String
+  expiryDate   DateTime?
+  batchNumber  String?
+  createdAt    DateTime  @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stocks  Stock[]
+  movements StockMovement[]
+
+  @@map("batches")
+}
+
+model Stock {
+  id          String   @id @default(cuid())
+  productId   String
+  warehouseId String
+  batchId     String?
+  quantity    Decimal  @default(0) @db.Decimal(18, 4)
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  batch     Batch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@unique([productId, warehouseId, batchId])
+  @@map("stocks")
+}
+
+model StockDocument {
+  id           String              @id @default(cuid())
+  type         StockDocumentType
+  number       String              @unique
+  documentDate DateTime            @default(now())
+  status       StockDocumentStatus  @default(DRAFT)
+  comment      String?
+  createdById  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  movements StockMovement[]
+
+  @@map("stock_documents")
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  documentId  String
+  type        StockMovementType
+  productId   String
+  warehouseId String
+  batchId     String?
+  quantity    Decimal            @db.Decimal(18, 4) // + приход/перемещение в, - расход/перемещение из
+
+  createdAt DateTime @default(now())
+
+  document  StockDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product  Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse   @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  batch    Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@map("stock_movements")
+}
+
+// ============================================
+// Курсы, модули, уроки
+// ============================================
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  slug        String   @unique
+  thumbnailUrl String?
+  published   Boolean  @default(false)
+  author      String   @default("Айхаана Данилова")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // AI-генерация (OpenClaw)
+  aiGenerated Boolean  @default(false)
+  aiMetadata  Json?
+
+  // Связи
+  modules      Module[]
+  enrollments  Enrollment[]
+  certificates Certificate[]
+  orderItems   OrderItem[]
+
+  @@map("courses")
+}
+
+model Module {
+  id        String   @id @default(cuid())
+  title     String
+  order     Int
+  courseId  String
+  createdAt DateTime @default(now())
+
+  // Связи
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@unique([courseId, order])
+  @@map("modules")
+}
+
+model Lesson {
+  id             String   @id @default(cuid())
+  title          String
+  description    String?
+  order          Int
+  durationMin    Int      @default(0) // длительность в минутах
+  rotate90       Boolean  @default(false)
+  moduleId       String
+  createdAt      DateTime @default(now())
+
+  // MUX видео
+  muxAssetId     String?  // ID ассета в MUX
+  muxPlaybackId  String?  // Playback ID для MuxPlayer
+  muxStatus      String?  // "preparing" | "ready" | "errored"
+
+  // Материалы (JSON массив {name, url, size})
+  materials      Json?
+
+  // AI-генерация
+  aiGenerated    Boolean  @default(false)
+
+  // Связи
+  module    Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress  Progress[]
+  homeworks Homework[]
+  comments  Comment[]
+
+  @@unique([moduleId, order])
+  @@map("lessons")
+}
+
+// ============================================
+// Запись на курс (enrollment)
+// ============================================
+
+model Enrollment {
+  id        String    @id @default(cuid())
+  userId    String
+  courseId   String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?              // дата окончания лицензии (null = бессрочно)
+  revokedAt DateTime?              // дата ручного отзыва доступа (null = активен)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+// ============================================
+// Прогресс прохождения уроков
+// ============================================
+
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@map("progress")
+}
+
+// ============================================
+// Домашние задания
+// ============================================
+
+enum HomeworkStatus {
+  SUBMITTED
+  REVIEWED
+  REVISION_NEEDED
+}
+
+model Homework {
+  id        String         @id @default(cuid())
+  userId    String
+  lessonId  String
+  fileUrl   String         // URL загруженного файла
+  fileName  String
+  comment   String?        // комментарий студента
+  status    HomeworkStatus @default(SUBMITTED)
+  feedback  String?        // обратная связь от преподавателя
+  grade     Int?           // оценка (1-10)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@map("homeworks")
+}
+
+// ============================================
+// Комментарии к урокам
+// ============================================
+
+model Comment {
+  id        String   @id @default(cuid())
+  text      String
+  userId    String
+  lessonId  String
+  parentId  String?  // для вложенных комментариев
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson  Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+// ============================================
+// Сертификаты
+// ============================================
+
+model Certificate {
+  id                String   @id @default(cuid())
+  userId            String
+  courseId          String
+  certificateNumber String   @unique
+  issuedAt          DateTime @default(now())
+  pdfUrl            String?  // URL сгенерированного PDF (опционально)
+  createdAt         DateTime @default(now())
+
+  // Связи
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("certificates")
+}
+
+// ============================================
+// RAG: база знаний (pgvector)
+// ============================================
+
+model KnowledgeChunk {
+  id        String   @id @default(cuid())
+  source    String   // "product", "procedure", "ingredient", "faq", "article"
+  sourceId  String?  // ID связанной сущности (productId, etc.)
+  title     String
+  content   String   @db.Text
+  // embedding Unsupported("vector(1536)")? // requires pgvector — enable after installing on the DB server
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("knowledge_chunks")
+}
+
+// ============================================
+// Соцсети: история постов
+// ============================================
+
+model SocialPost {
+  id          String    @id @default(cuid())
+  content     String    @db.Text
+  imageUrl    String?
+  platforms   String[]  // ["telegram", "vk"]
+  status      String    @default("draft") // draft, published, failed, partial
+  publishedAt DateTime?
+  results     Json?     // {telegram: {messageId, ok}, vk: {postId, ok}}
+  error       String?   // Текст ошибки, если failed
+  createdAt   DateTime  @default(now())
+
+  @@map("social_posts")
+}
+
+// ============================================
+// Диагностика кожи
+// ============================================
+
+model SkinAnalysis {
+  id        String   @id @default(cuid())
+  userId    String?
+  imageUrl  String
+  result    Json     // {skinType, concerns[], recommendations[], summary}
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("skin_analyses")
+}
+
+// ============================================
+// Заказы (курсы + товары)
+// ============================================
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderType {
+  COURSE
+  PRODUCT
+  MIXED
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String
+  orderNumber String      @unique
+  type        OrderType
+  status      OrderStatus @default(PENDING)
+  totalAmount Decimal     @db.Decimal(10, 2)
+  paymentId   String?
+  note        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String?
+  courseId    String?
+  quantity   Int     @default(1)
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  course  Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@map("order_items")
+}
+
+// ============================================
+// Ежедневник (планировщик)
+// ============================================
+
+model PlannerNote {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  time      String?  // "14:30" формат HH:mm, null = целодневное
+  title     String
+  text      String?  @db.Text
+  color     String?  // hex цвет, например "#3b82f6"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("planner_notes")
+}
