@@ -2,9 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
-import { AdminLayoutClient } from "./admin-layout-client"
+import { DoctorLayoutClient } from "./doctor-layout-client"
 
-export default async function AdminLayout({
+export default async function DoctorLayout({
   children,
 }: {
   children: React.ReactNode
@@ -13,10 +13,9 @@ export default async function AdminLayout({
   if (!session?.user) redirect("/login")
 
   const role = (session.user as { role?: string }).role
-  // Владелец и управляющий имеют доступ к админке
-  if (role !== "OWNER" && role !== "MANAGER") {
+  if (!["OWNER", "MANAGER", "DOCTOR"].includes(role || "")) {
     redirect("/home")
   }
 
-  return <AdminLayoutClient>{children}</AdminLayoutClient>
+  return <DoctorLayoutClient role={role || "DOCTOR"}>{children}</DoctorLayoutClient>
 }

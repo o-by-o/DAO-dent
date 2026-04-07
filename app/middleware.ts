@@ -3,11 +3,9 @@ import type { NextRequest } from "next/server"
 
 /**
  * In-memory rate limiter для middleware (edge runtime).
- * Для горизонтального масштабирования использовать Redis.
  */
 const loginAttempts = new Map<string, { count: number; resetAt: number }>()
 
-// Очистка каждые 5 минут
 setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of loginAttempts) {
@@ -48,12 +46,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Rate limit на payment webhook: 30 запросов в минуту
-  if (pathname === "/api/payment/grant-access" && request.method === "POST") {
+  // Rate limit на API заявок с лендинга: 5 заявок за 5 минут с одного IP
+  if (pathname === "/api/leads" && request.method === "POST") {
     const ip = getIp(request)
-    if (isRateLimited(`payment:${ip}`, 30, 60)) {
+    if (isRateLimited(`leads:${ip}`, 5, 300)) {
       return NextResponse.json(
-        { error: "Too many requests" },
+        { error: "Слишком много заявок. Попробуйте позже." },
         { status: 429 },
       )
     }
@@ -65,6 +63,6 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/api/auth/callback/credentials",
-    "/api/payment/grant-access",
+    "/api/leads",
   ],
 }

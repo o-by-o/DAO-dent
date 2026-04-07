@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { ChevronLeft, ChevronRight, Plus, X, Trash2, MousePointerClick } from "lucide-react"
 import type { ScheduleEvent } from "@/app/api/schedule/route"
 
@@ -157,7 +156,6 @@ export function ScheduleClient() {
   }
 
   return (
-    <DashboardLayout activePath="/schedule">
       <div className="flex h-[calc(100vh-7rem)] flex-col">
         {/* Toolbar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -251,7 +249,6 @@ export function ScheduleClient() {
           />
         )}
       </div>
-    </DashboardLayout>
   )
 }
 
