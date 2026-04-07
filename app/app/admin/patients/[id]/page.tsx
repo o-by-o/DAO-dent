@@ -18,37 +18,54 @@ export default async function AdminPatientDetailRoute({
 
   const { id } = await params
 
-  const patient = await prisma.patient.findUnique({
-    where: { id },
-    include: {
-      doctor: { select: { id: true, name: true, specialization: true } },
-      appointments: {
-        orderBy: { date: "desc" },
-        take: 20,
-        include: {
-          doctor: { select: { name: true } },
-          service: { select: { name: true, price: true } },
-          cabinet: { select: { name: true } },
-        },
-      },
-      treatmentPlans: {
-        orderBy: { createdAt: "desc" },
-        include: {
-          steps: {
-            orderBy: { order: "asc" },
-            include: { service: { select: { name: true } } },
+  const [patient, doctors, services] = await Promise.all([
+    prisma.patient.findUnique({
+      where: { id },
+      include: {
+        doctor: { select: { id: true, name: true, specialization: true } },
+        appointments: {
+          orderBy: { date: "desc" },
+          take: 20,
+          include: {
+            doctor: { select: { name: true } },
+            service: { select: { name: true, price: true } },
+            cabinet: { select: { name: true } },
           },
-          doctor: { select: { name: true } },
         },
+        treatmentPlans: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            steps: {
+              orderBy: { order: "asc" },
+              include: { service: { select: { name: true } } },
+            },
+            doctor: { select: { name: true } },
+          },
+        },
+        dentalChart: { orderBy: { toothNumber: "asc" } },
+        notes: { orderBy: { createdAt: "desc" } },
+        payments: { orderBy: { createdAt: "desc" }, take: 20 },
+        documents: { orderBy: { createdAt: "desc" } },
       },
-      dentalChart: { orderBy: { toothNumber: "asc" } },
-      notes: { orderBy: { createdAt: "desc" } },
-      payments: { orderBy: { createdAt: "desc" }, take: 20 },
-      documents: { orderBy: { createdAt: "desc" } },
-    },
-  })
+    }),
+    prisma.user.findMany({
+      where: { role: "DOCTOR" },
+      select: { id: true, name: true, specialization: true },
+    }),
+    prisma.service.findMany({
+      where: { published: true },
+      orderBy: { order: "asc" },
+      select: { id: true, name: true, durationMin: true, price: true },
+    }),
+  ])
 
   if (!patient) notFound()
 
-  return <PatientDetailPage patient={patient} />
+  return (
+    <PatientDetailPage
+      patient={patient}
+      doctors={doctors}
+      services={services}
+    />
+  )
 }

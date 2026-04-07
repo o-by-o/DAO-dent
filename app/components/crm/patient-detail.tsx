@@ -14,6 +14,9 @@ import {
   ClipboardList,
 } from "lucide-react"
 import { DentalChart } from "@/components/dental/dental-chart"
+import { AppointmentModal } from "@/components/crm/appointment-modal"
+import { TreatmentPlanForm } from "@/components/doctor/treatment-plan-form"
+import { useState } from "react"
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   NEW_LEAD: { label: "Новый", color: "bg-blue-100 text-blue-700" },
@@ -94,7 +97,20 @@ type PatientFull = {
   createdAt?: Date | string
 }
 
-export function PatientDetailPage({ patient }: { patient: PatientFull }) {
+type Doctor = { id: string; name: string | null; specialization: string | null }
+type Service = { id: string; name: string; durationMin: number; price: { toString(): string } }
+
+export function PatientDetailPage({
+  patient,
+  doctors = [],
+  services = [],
+}: {
+  patient: PatientFull
+  doctors?: Doctor[]
+  services?: Service[]
+}) {
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false)
+  const [showTreatmentPlanForm, setShowTreatmentPlanForm] = useState(false)
   const status = STATUS_LABELS[patient.status] || { label: patient.status, color: "bg-gray-100 text-gray-600" }
 
   const totalPaid = patient.payments
@@ -127,7 +143,10 @@ export function PatientDetailPage({ patient }: { patient: PatientFull }) {
             )}
           </div>
         </div>
-        <button className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700">
+        <button
+          onClick={() => setShowAppointmentModal(true)}
+          className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+        >
           Записать на приём
         </button>
       </div>
@@ -236,9 +255,17 @@ export function PatientDetailPage({ patient }: { patient: PatientFull }) {
 
           {/* Планы лечения */}
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
-              <ClipboardList className="h-4 w-4 text-blue-600" /> Планы лечения
-            </h3>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 font-semibold text-gray-900">
+                <ClipboardList className="h-4 w-4 text-blue-600" /> Планы лечения
+              </h3>
+              <button
+                onClick={() => setShowTreatmentPlanForm(true)}
+                className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+              >
+                + Создать план
+              </button>
+            </div>
             {patient.treatmentPlans.length === 0 ? (
               <p className="text-sm text-gray-400">Планов лечения нет</p>
             ) : (
@@ -308,6 +335,27 @@ export function PatientDetailPage({ patient }: { patient: PatientFull }) {
           </div>
         </div>
       </div>
+
+      {/* Форма плана лечения */}
+      <TreatmentPlanForm
+        patientId={patient.id}
+        patientName={`${patient.lastName} ${patient.firstName}`}
+        services={services}
+        open={showTreatmentPlanForm}
+        onClose={() => setShowTreatmentPlanForm(false)}
+        onSuccess={() => window.location.reload()}
+      />
+
+      {/* Модалка записи на приём */}
+      <AppointmentModal
+        patientId={patient.id}
+        patientName={`${patient.lastName} ${patient.firstName}`}
+        doctors={doctors}
+        services={services}
+        open={showAppointmentModal}
+        onClose={() => setShowAppointmentModal(false)}
+        onSuccess={() => window.location.reload()}
+      />
     </div>
   )
 }

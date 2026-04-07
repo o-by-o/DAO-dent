@@ -128,13 +128,38 @@ export function LeadsListPage({ leads }: { leads: LeadRow[] }) {
 
                 <div className="flex gap-2">
                   {lead.status === "NEW" && (
-                    <button className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 transition hover:bg-green-100">
+                    <button
+                      onClick={async () => {
+                        await fetch(`/api/leads/${lead.id}/convert`, { method: "POST" })
+                        window.location.reload()
+                      }}
+                      className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 transition hover:bg-green-100"
+                    >
                       Обработать
                     </button>
                   )}
-                  <button className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100">
-                    Создать пациента
-                  </button>
+                  {!lead.patient && lead.status !== "CONVERTED" && (
+                    <button
+                      onClick={async () => {
+                        const res = await fetch(`/api/leads/${lead.id}/convert`, { method: "POST" })
+                        if (res.ok) {
+                          const data = await res.json()
+                          window.location.href = `/admin/patients/${data.patientId}`
+                        }
+                      }}
+                      className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                    >
+                      Создать пациента
+                    </button>
+                  )}
+                  {lead.patient && (
+                    <a
+                      href={`/admin/patients/${lead.patient.id}`}
+                      className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Карточка пациента
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
