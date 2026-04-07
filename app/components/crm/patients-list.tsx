@@ -48,13 +48,21 @@ export function PatientsListPage({ patients }: { patients: PatientRow[] }) {
           <h1 className="text-2xl font-bold text-gray-900">Пациенты</h1>
           <p className="text-sm text-gray-500">{patients.length} пациентов в базе</p>
         </div>
-        <Link
-          href="/admin/patients/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4" />
-          Добавить пациента
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/patients/kanban"
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+          >
+            Воронка
+          </Link>
+          <Link
+            href="/admin/patients/new"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" />
+            Добавить
+          </Link>
+        </div>
       </div>
 
       {/* Фильтры */}

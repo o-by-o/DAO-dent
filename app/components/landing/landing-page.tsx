@@ -15,6 +15,7 @@ import { LandingCalculator } from "./landing-calculator"
 import { CallbackWidget } from "./callback-widget"
 import { ExitIntentPopup } from "./exit-intent-popup"
 import { StickyCTA } from "./sticky-cta"
+import { MedicalDisclaimer } from "./medical-disclaimer"
 import type { LandingPageProps } from "./landing-types"
 
 export type { LandingPageProps }
@@ -46,6 +47,8 @@ export function LandingPage({
         <LandingAppointmentForm />
         <LandingLocation />
       </main>
+
+      <MedicalDisclaimer variant="banner" />
 
       <SiteFooter
         footerPhone={footerPhone}

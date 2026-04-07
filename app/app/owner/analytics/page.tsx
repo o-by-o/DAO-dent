@@ -101,6 +101,73 @@ export default async function OwnerAnalyticsPage() {
       monthRevenue: Number(monthRevAgg._sum.amount || 0),
       totalRevenue: Number(totalRevAgg._sum.amount || 0),
       pendingPayments: Number(pendingAgg._sum.amount || 0),
+      dailyRevenue: [] as Array<{ date: string; revenue: number; appointments: number }>,
+      avgCheckByDoctor: [] as Array<{ name: string; avgCheck: number; totalRevenue: number; count: number }>,
+    }
+
+    // Данные по дням за 30 дней для графика
+    try {
+      const payments = await prisma.payment.findMany({
+        where: { status: "PAID", createdAt: { gte: monthAgo } },
+        select: { amount: true, createdAt: true },
+      })
+
+      const appointmentsByDate = await prisma.appointment.findMany({
+        where: { date: { gte: monthAgo }, status: "COMPLETED" },
+        select: { date: true },
+      })
+
+      // Группируем по дням
+      const dailyMap = new Map<string, { revenue: number; appointments: number }>()
+      for (let d = new Date(monthAgo); d <= today; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().split("T")[0]
+        dailyMap.set(key, { revenue: 0, appointments: 0 })
+      }
+
+      for (const p of payments) {
+        const key = p.createdAt.toISOString().split("T")[0]
+        const entry = dailyMap.get(key)
+        if (entry) entry.revenue += Number(p.amount)
+      }
+
+      for (const a of appointmentsByDate) {
+        const key = a.date.toISOString().split("T")[0]
+        const entry = dailyMap.get(key)
+        if (entry) entry.appointments += 1
+      }
+
+      stats.dailyRevenue = Array.from(dailyMap.entries())
+        .map(([date, data]) => ({ date, ...data }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+      // Средний чек по врачам
+      const doctorPayments = await prisma.payment.findMany({
+        where: { status: "PAID" },
+        select: {
+          amount: true,
+          appointment: {
+            select: { doctor: { select: { name: true } } },
+          },
+        },
+      })
+
+      const doctorStats = new Map<string, { total: number; count: number }>()
+      for (const p of doctorPayments) {
+        const name = p.appointment?.doctor?.name || "Без врача"
+        const entry = doctorStats.get(name) || { total: 0, count: 0 }
+        entry.total += Number(p.amount)
+        entry.count += 1
+        doctorStats.set(name, entry)
+      }
+
+      stats.avgCheckByDoctor = Array.from(doctorStats.entries()).map(([name, d]) => ({
+        name,
+        avgCheck: d.count > 0 ? Math.round(d.total / d.count) : 0,
+        totalRevenue: d.total,
+        count: d.count,
+      }))
+    } catch {
+      // Ошибка агрегации — не критично
     }
   } catch {
     // БД недоступна

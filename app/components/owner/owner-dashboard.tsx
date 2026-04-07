@@ -14,9 +14,12 @@ import {
 import {
   BarChart,
   Bar,
+  Line,
+  LineChart,
   XAxis,
   YAxis,
   Tooltip,
+  CartesianGrid,
   ResponsiveContainer,
 } from "recharts"
 
@@ -34,6 +37,8 @@ type DashboardStats = {
   monthRevenue: number
   totalRevenue: number
   pendingPayments: number
+  dailyRevenue?: Array<{ date: string; revenue: number; appointments: number }>
+  avgCheckByDoctor?: Array<{ name: string; avgCheck: number; totalRevenue: number; count: number }>
 }
 
 const CABINET_STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -222,6 +227,99 @@ export function OwnerDashboard({ stats }: { stats: DashboardStats }) {
           </div>
         </div>
       </div>
+
+      {/* Графики динамики */}
+      {stats.dailyRevenue && stats.dailyRevenue.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Выручка по дням */}
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              Выручка за 30 дней
+            </h2>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={stats.dailyRevenue}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v: string) => {
+                    const d = new Date(v)
+                    return `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, "0")}`
+                  }}
+                />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                <Tooltip
+                  formatter={(value: number) => [`${fmt(value)} ₽`, "Выручка"]}
+                  labelFormatter={(label: string) => new Date(label).toLocaleDateString("ru-RU")}
+                  contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
+                />
+                <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Приёмы по дням */}
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <CalendarDays className="h-5 w-5 text-blue-600" />
+              Приёмы за 30 дней
+            </h2>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={stats.dailyRevenue}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v: string) => {
+                    const d = new Date(v)
+                    return `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, "0")}`
+                  }}
+                />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip
+                  formatter={(value: number) => [`${value}`, "Приёмы"]}
+                  labelFormatter={(label: string) => new Date(label).toLocaleDateString("ru-RU")}
+                  contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
+                />
+                <Bar dataKey="appointments" fill="#22c55e" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Средний чек по врачам */}
+      {stats.avgCheckByDoctor && stats.avgCheckByDoctor.length > 0 && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <DollarSign className="h-5 w-5 text-blue-600" />
+            Средний чек по врачам
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-gray-500">
+                  <th className="pb-3 font-medium">Врач</th>
+                  <th className="pb-3 font-medium text-right">Средний чек</th>
+                  <th className="pb-3 font-medium text-right">Выручка</th>
+                  <th className="pb-3 font-medium text-right">Оплат</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {stats.avgCheckByDoctor.map((d, i) => (
+                  <tr key={i}>
+                    <td className="py-3 font-medium text-gray-900">{d.name}</td>
+                    <td className="py-3 text-right font-semibold text-blue-600">{fmt(d.avgCheck)} &#8381;</td>
+                    <td className="py-3 text-right text-gray-600">{fmt(d.totalRevenue)} &#8381;</td>
+                    <td className="py-3 text-right text-gray-400">{d.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Быстрые действия */}
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
