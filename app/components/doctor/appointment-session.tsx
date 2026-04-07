@@ -15,6 +15,7 @@ import {
   Stethoscope,
 } from "lucide-react"
 import { DentalChart } from "@/components/dental/dental-chart"
+import { AppointmentModal } from "@/components/crm/appointment-modal"
 
 type AppointmentFull = {
   id: string
@@ -69,6 +70,7 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
   const [recommendations, setRecommendations] = useState(appointment.recommendations || "")
   const [saving, setSaving] = useState(false)
 
+  const [showNextVisit, setShowNextVisit] = useState(false)
   const isActive = status === "IN_PROGRESS"
   const isCompleted = status === "COMPLETED"
   const patient = appointment.patient
@@ -168,9 +170,17 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
               </button>
             </>
           ) : isCompleted ? (
-            <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
-              Приём завершён
-            </span>
+            <>
+              <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
+                Приём завершён
+              </span>
+              <button
+                onClick={() => setShowNextVisit(true)}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+              >
+                Следующий визит
+              </button>
+            </>
           ) : null}
         </div>
       </div>
@@ -288,9 +298,21 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
               notes: t.notes,
             }))}
             editable={isActive}
+            patientId={patient.id}
           />
         </div>
       </div>
+
+      {/* Модалка записи следующего визита */}
+      <AppointmentModal
+        patientId={patient.id}
+        patientName={`${patient.lastName} ${patient.firstName}`}
+        doctors={[]}
+        services={appointment.service ? [appointment.service] : []}
+        open={showNextVisit}
+        onClose={() => setShowNextVisit(false)}
+        onSuccess={() => router.push("/doctor/appointments")}
+      />
     </div>
   )
 }

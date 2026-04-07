@@ -55,7 +55,9 @@ const LOWER_RIGHT = [48, 47, 46, 45, 44, 43, 42, 41]
 type Props = {
   teeth: ToothData[]
   onToothClick?: (toothNumber: number) => void
+  onStatusChange?: (toothNumber: number, status: ToothStatus) => void
   editable?: boolean
+  patientId?: string
 }
 
 function ToothIcon({
@@ -108,7 +110,8 @@ function ToothIcon({
   )
 }
 
-export function DentalChart({ teeth, onToothClick, editable = false }: Props) {
+export function DentalChart({ teeth, onToothClick, onStatusChange, editable = false, patientId }: Props) {
+  const [saving, setSaving] = useState(false)
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null)
 
   const getStatus = (num: number): ToothStatus => {
@@ -165,15 +168,46 @@ export function DentalChart({ teeth, onToothClick, editable = false }: Props) {
         ))}
       </div>
 
-      {/* Выбранный зуб */}
+      {/* Редактирование выбранного зуба */}
       {selectedTooth && editable && (
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-          <p className="text-sm font-medium text-blue-900">
+          <p className="mb-2 text-sm font-medium text-blue-900">
             Зуб {selectedTooth} — {STATUS_LABELS[getStatus(selectedTooth)]}
           </p>
-          <p className="mt-1 text-xs text-blue-600">
-            Нажмите для изменения статуса (функция в разработке)
-          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {(Object.keys(STATUS_LABELS) as ToothStatus[]).map((st) => (
+              <button
+                key={st}
+                type="button"
+                disabled={saving}
+                onClick={async () => {
+                  if (patientId) {
+                    setSaving(true)
+                    await fetch(`/api/admin/patients/${patientId}/dental-chart`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ toothNumber: selectedTooth, status: st }),
+                    })
+                    setSaving(false)
+                  }
+                  onStatusChange?.(selectedTooth, st)
+                }}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+                  getStatus(selectedTooth) === st
+                    ? "ring-2 ring-blue-500 ring-offset-1"
+                    : "hover:opacity-80"
+                }`}
+                style={{
+                  backgroundColor: STATUS_COLORS[st] + "20",
+                  color: STATUS_COLORS[st],
+                  borderWidth: 1,
+                  borderColor: STATUS_COLORS[st] + "40",
+                }}
+              >
+                {STATUS_LABELS[st]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

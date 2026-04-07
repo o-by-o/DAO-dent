@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 // GET /api/admin/patients — список пациентов
 export async function GET(req: NextRequest) {
@@ -65,6 +66,14 @@ export async function POST(req: NextRequest) {
       doctorId: doctorId || null,
       status: "NEW_LEAD",
     },
+  })
+
+  await logAudit({
+    userId: session.user.id,
+    action: "patient.create",
+    entity: "patient",
+    entityId: patient.id,
+    details: { firstName, lastName, phone },
   })
 
   return NextResponse.json(patient)

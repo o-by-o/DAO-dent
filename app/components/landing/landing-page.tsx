@@ -10,7 +10,9 @@ import { LandingTestimonials } from "./landing-testimonials"
 import { LandingPromotions } from "./landing-promotions"
 import { LandingAppointmentForm } from "./landing-appointment-form"
 import { LandingLocation } from "./landing-location"
+import { LandingQuiz } from "./landing-quiz"
 import { LandingCalculator } from "./landing-calculator"
+import { CallbackWidget } from "./callback-widget"
 import { ExitIntentPopup } from "./exit-intent-popup"
 import { StickyCTA } from "./sticky-cta"
 import type { LandingPageProps } from "./landing-types"
@@ -39,6 +41,7 @@ export function LandingPage({
         <LandingAbout />
         <LandingTestimonials reviews={reviews} />
         <LandingPromotions />
+        <LandingQuiz />
         <LandingCalculator />
         <LandingAppointmentForm />
         <LandingLocation />
@@ -52,6 +55,7 @@ export function LandingPage({
       />
 
       <StickyCTA />
+      <CallbackWidget />
       <ExitIntentPopup />
       <BotyAiChat />
     </div>

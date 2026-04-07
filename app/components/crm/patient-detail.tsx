@@ -224,6 +224,35 @@ export function PatientDetailPage({
             <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
               <FileText className="h-4 w-4 text-gray-400" /> Заметки
             </h3>
+            {/* Форма новой заметки */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const fd = new FormData(e.currentTarget)
+                const text = fd.get("noteText") as string
+                if (!text?.trim()) return
+                await fetch(`/api/admin/patients/${patient.id}/notes`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ text }),
+                })
+                e.currentTarget.reset()
+                window.location.reload()
+              }}
+              className="mb-4 flex gap-2"
+            >
+              <input
+                name="noteText"
+                placeholder="Добавить заметку..."
+                className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-blue-500"
+              />
+              <button
+                type="submit"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-700"
+              >
+                Добавить
+              </button>
+            </form>
             {patient.notes.length === 0 ? (
               <p className="text-sm text-gray-400">Заметок пока нет</p>
             ) : (
@@ -251,6 +280,8 @@ export function PatientDetailPage({
               notes: t.notes,
             }))}
             editable
+            patientId={patient.id}
+            onStatusChange={() => window.location.reload()}
           />
 
           {/* Планы лечения */}
