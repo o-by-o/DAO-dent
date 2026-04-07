@@ -31,9 +31,11 @@ export function SiteHeader({ isLoggedIn }: SiteHeaderProps) {
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
 
-          <div className="hidden items-center gap-8 lg:flex">
+          <div className="hidden items-center gap-6 lg:flex">
             <a href="#services" className={linkClass}>Услуги</a>
+            <a href="#prices" className={linkClass}>Цены</a>
             <a href="#doctors" className={linkClass}>Врачи</a>
+            <a href="#about" className={linkClass}>О клинике</a>
             <a href="#reviews" className={linkClass}>Отзывы</a>
             <a href="#contacts" className={linkClass}>Контакты</a>
           </div>
@@ -79,7 +81,9 @@ export function SiteHeader({ isLoggedIn }: SiteHeaderProps) {
         >
           <div className="flex flex-col gap-4 border-t border-gray-100 pt-4">
             <a href="#services" className={linkClass} onClick={() => setMenuOpen(false)}>Услуги</a>
+            <a href="#prices" className={linkClass} onClick={() => setMenuOpen(false)}>Цены</a>
             <a href="#doctors" className={linkClass} onClick={() => setMenuOpen(false)}>Врачи</a>
+            <a href="#about" className={linkClass} onClick={() => setMenuOpen(false)}>О клинике</a>
             <a href="#reviews" className={linkClass} onClick={() => setMenuOpen(false)}>Отзывы</a>
             <a href="#contacts" className={linkClass} onClick={() => setMenuOpen(false)}>Контакты</a>
             <a

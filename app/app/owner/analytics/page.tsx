@@ -32,6 +32,10 @@ export default async function OwnerAnalyticsPage() {
     patientsInTreatment: 0,
     cabinets: [] as Array<{ id: string; name: string; number: number; status: string }>,
     doctorWorkload: [] as Array<{ name: string | null; count: number }>,
+    funnel: { leads: 0, scheduled: 0, visited: 0, inTreatment: 0, completed: 0 },
+    monthRevenue: 0,
+    totalRevenue: 0,
+    pendingPayments: 0,
   }
 
   try {
@@ -44,6 +48,13 @@ export default async function OwnerAnalyticsPage() {
       newLeadsWeek,
       patientsInTreatment,
       cabinets,
+      leadsCount,
+      scheduledCount,
+      visitedCount,
+      completedCount,
+      totalRevAgg,
+      monthRevAgg,
+      pendingAgg,
     ] = await Promise.all([
       prisma.appointment.count({ where: { date: { gte: today } } }),
       prisma.appointment.count({ where: { date: { gte: weekAgo } } }),
@@ -53,18 +64,20 @@ export default async function OwnerAnalyticsPage() {
       prisma.lead.count({ where: { createdAt: { gte: weekAgo } } }),
       prisma.patient.count({ where: { status: "IN_TREATMENT" } }),
       prisma.cabinet.findMany({ orderBy: { number: "asc" } }),
+      prisma.patient.count({ where: { status: "NEW_LEAD" } }),
+      prisma.patient.count({ where: { status: "APPOINTMENT_SCHEDULED" } }),
+      prisma.patient.count({ where: { status: "VISITED" } }),
+      prisma.patient.count({ where: { status: "TREATMENT_COMPLETED" } }),
+      prisma.payment.aggregate({ _sum: { amount: true }, where: { status: "PAID" } }),
+      prisma.payment.aggregate({ _sum: { amount: true }, where: { status: "PAID", createdAt: { gte: monthAgo } } }),
+      prisma.payment.aggregate({ _sum: { amount: true }, where: { status: "PENDING" } }),
     ])
 
-    // Загруженность врачей (приёмы за неделю)
     const doctors = await prisma.user.findMany({
       where: { role: "DOCTOR" },
       select: {
         name: true,
-        _count: {
-          select: {
-            appointments: { where: { date: { gte: weekAgo } } },
-          },
-        },
+        _count: { select: { appointments: { where: { date: { gte: weekAgo } } } } },
       },
     })
 
@@ -78,6 +91,16 @@ export default async function OwnerAnalyticsPage() {
       patientsInTreatment,
       cabinets,
       doctorWorkload: doctors.map((d) => ({ name: d.name, count: d._count.appointments })),
+      funnel: {
+        leads: leadsCount,
+        scheduled: scheduledCount,
+        visited: visitedCount,
+        inTreatment: patientsInTreatment,
+        completed: completedCount,
+      },
+      monthRevenue: Number(monthRevAgg._sum.amount || 0),
+      totalRevenue: Number(totalRevAgg._sum.amount || 0),
+      pendingPayments: Number(pendingAgg._sum.amount || 0),
     }
   } catch {
     // БД недоступна
