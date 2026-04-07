@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { DentalChart } from "@/components/dental/dental-chart"
 import { AppointmentModal } from "@/components/crm/appointment-modal"
+import { VoiceInput } from "@/components/doctor/voice-input"
 
 type AppointmentFull = {
   id: string
@@ -202,13 +203,52 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
         {/* Левая колонка — форма приёма */}
         <div className="space-y-4">
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-              <Stethoscope className="h-4 w-4 text-blue-600" /> Протокол приёма
-            </h3>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 font-semibold text-gray-900">
+                <Stethoscope className="h-4 w-4 text-blue-600" /> Протокол приёма
+              </h3>
+              {/* Общий голосовой ввод — заполняет все поля автоматически */}
+              {isActive && (
+                <VoiceInput
+                  label="Диктовать"
+                  onResult={(text, parsed) => {
+                    // Автозаполнение полей из распознанной речи
+                    if (parsed.diagnosis) {
+                      setDiagnosis((prev) =>
+                        prev ? `${prev}\n${parsed.diagnosis}` : parsed.diagnosis || "",
+                      )
+                    }
+                    if (parsed.procedures.length > 0) {
+                      setTreatmentText((prev) =>
+                        prev ? `${prev}\n${parsed.procedures.join(", ")}` : parsed.procedures.join(", "),
+                      )
+                    }
+                    if (parsed.materials.length > 0) {
+                      setMaterials((prev) =>
+                        prev ? `${prev}\n${parsed.materials.join(", ")}` : parsed.materials.join(", "),
+                      )
+                    }
+                    // Если ничего не распарсилось — добавим в диагноз как есть
+                    if (!parsed.diagnosis && parsed.procedures.length === 0) {
+                      setDiagnosis((prev) => prev ? `${prev}\n${text}` : text)
+                    }
+                  }}
+                />
+              )}
+            </div>
 
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Диагноз</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Диагноз</label>
+                  {isActive && (
+                    <VoiceInput
+                      label="Mic"
+                      className="scale-90"
+                      onResult={(text) => setDiagnosis((prev) => prev ? `${prev}\n${text}` : text)}
+                    />
+                  )}
+                </div>
                 <textarea
                   value={diagnosis}
                   onChange={(e) => setDiagnosis(e.target.value)}
@@ -220,7 +260,16 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Проведённое лечение</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Проведённое лечение</label>
+                  {isActive && (
+                    <VoiceInput
+                      label="Mic"
+                      className="scale-90"
+                      onResult={(text) => setTreatmentText((prev) => prev ? `${prev}\n${text}` : text)}
+                    />
+                  )}
+                </div>
                 <textarea
                   value={treatmentText}
                   onChange={(e) => setTreatmentText(e.target.value)}
@@ -232,7 +281,16 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Использованные материалы</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Использованные материалы</label>
+                  {isActive && (
+                    <VoiceInput
+                      label="Mic"
+                      className="scale-90"
+                      onResult={(text) => setMaterials((prev) => prev ? `${prev}\n${text}` : text)}
+                    />
+                  )}
+                </div>
                 <textarea
                   value={materials}
                   onChange={(e) => setMaterials(e.target.value)}
@@ -244,7 +302,16 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Рекомендации пациенту</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Рекомендации пациенту</label>
+                  {isActive && (
+                    <VoiceInput
+                      label="Mic"
+                      className="scale-90"
+                      onResult={(text) => setRecommendations((prev) => prev ? `${prev}\n${text}` : text)}
+                    />
+                  )}
+                </div>
                 <textarea
                   value={recommendations}
                   onChange={(e) => setRecommendations(e.target.value)}
