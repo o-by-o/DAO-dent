@@ -17,6 +17,7 @@ import {
 import { DentalChart } from "@/components/dental/dental-chart"
 import { AppointmentModal } from "@/components/crm/appointment-modal"
 import { VoiceInput } from "@/components/doctor/voice-input"
+import { VoiceCommands, type VoiceCommand } from "@/components/doctor/voice-commands"
 
 type AppointmentFull = {
   id: string
@@ -72,9 +73,36 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
   const [saving, setSaving] = useState(false)
 
   const [showNextVisit, setShowNextVisit] = useState(false)
+  const [voiceEnabled, setVoiceEnabled] = useState(false)
   const isActive = status === "IN_PROGRESS"
   const isCompleted = status === "COMPLETED"
   const patient = appointment.patient
+
+  // Обработчик голосовых команд
+  function handleVoiceCommand(command: VoiceCommand, payload?: string) {
+    switch (command) {
+      case "start_appointment":
+        if (!isActive && !isCompleted) startAppointment()
+        break
+      case "complete_appointment":
+        if (isActive) saveAndComplete()
+        break
+      case "save":
+        if (isActive) saveProgress()
+        break
+      case "next_visit":
+        setShowNextVisit(true)
+        break
+      case "add_diagnosis":
+        if (payload) setDiagnosis((prev) => prev ? `${prev}\n${payload}` : payload)
+        break
+      case "start_dictation":
+        // Подсказка — нужно нажать кнопку «Диктовать» для SpeechKit
+        break
+      case "stop_recording":
+        break
+    }
+  }
 
   async function startAppointment() {
     const res = await fetch(`/api/admin/appointments/${appointment.id}`, {
@@ -198,6 +226,25 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
           </div>
         </div>
       )}
+
+      {/* Голосовые команды — always-on listening */}
+      <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-5 py-3 shadow-sm">
+        <VoiceCommands
+          onCommand={handleVoiceCommand}
+          enabled={voiceEnabled}
+        />
+        <button
+          type="button"
+          onClick={() => setVoiceEnabled(!voiceEnabled)}
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+            voiceEnabled
+              ? "bg-green-100 text-green-700 hover:bg-green-200"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          {voiceEnabled ? "Выключить команды" : "Включить голосовые команды"}
+        </button>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Левая колонка — форма приёма */}
