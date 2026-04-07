@@ -1,20 +1,19 @@
 import type { LucideIcon } from "lucide-react"
 import {
   LayoutDashboard,
-  BookOpen,
-  Search,
   CalendarDays,
   Settings,
   HelpCircle,
-  GraduationCap,
   Users,
   UserCircle,
   Package,
-  ScanFace,
   Sparkles,
-  ShoppingBag,
-  Film,
-  Contact,
+  Stethoscope,
+  ClipboardList,
+  CreditCard,
+  Activity,
+  Building2,
+  BarChart3,
 } from "lucide-react"
 
 export interface DashboardNavItem {
@@ -23,25 +22,35 @@ export interface DashboardNavItem {
   href: string
 }
 
+// Навигация для администратора ресепшна
 export const navItemsBase: readonly DashboardNavItem[] = [
   { label: "Главная", icon: LayoutDashboard, href: "/home" },
-  { label: "Мои курсы", icon: BookOpen, href: "/courses" },
-  { label: "Каталог курсов", icon: Search, href: "/catalog" },
-  { label: "Магазин", icon: ShoppingBag, href: "/shop" },
-  { label: "Диагностика лица", icon: ScanFace, href: "/diagnostics" },
-  { label: "Заказ товаров", icon: Sparkles, href: "/order-chat" },
-  { label: "Мои клиенты", icon: Contact, href: "/my-clients" },
-  { label: "Мой склад", icon: Package, href: "/my-warehouse" },
+  { label: "Расписание", icon: CalendarDays, href: "/schedule" },
+  { label: "Пациенты", icon: UserCircle, href: "/patients" },
+  { label: "Заявки", icon: ClipboardList, href: "/leads" },
 ] as const
 
+// Навигация для врачей
+export const navItemsDoctor: readonly DashboardNavItem[] = [
+  { label: "Мои приёмы", icon: Stethoscope, href: "/doctor/appointments" },
+  { label: "Мои пациенты", icon: UserCircle, href: "/doctor/patients" },
+] as const
+
+// Навигация для владельца / управляющего
+export const navItemsOwner: readonly DashboardNavItem[] = [
+  { label: "Аналитика", icon: BarChart3, href: "/owner/analytics" },
+  { label: "Кабинеты", icon: Building2, href: "/owner/cabinets" },
+  { label: "Оплаты", icon: CreditCard, href: "/owner/payments" },
+  { label: "Маркетинг", icon: Activity, href: "/owner/marketing" },
+] as const
+
+// Админские функции (для OWNER и MANAGER)
 export const navItemsAdmin: readonly DashboardNavItem[] = [
-  { label: "Агент", icon: Sparkles, href: "/admin/agent" },
-  { label: "Управление курсами", icon: GraduationCap, href: "/admin/courses" },
-  { label: "Управление пользователями", icon: Users, href: "/admin/users" },
-  { label: "Клиентская база", icon: UserCircle, href: "/admin/clients" },
-  { label: "Складские операции", icon: Package, href: "/admin/warehouse" },
-  { label: "Медиатека", icon: Film, href: "/admin/media" },
-  { label: "Календарь", icon: CalendarDays, href: "/admin/calendar" },
+  { label: "AI-агент", icon: Sparkles, href: "/admin/agent" },
+  { label: "Услуги", icon: ClipboardList, href: "/admin/services" },
+  { label: "Пользователи", icon: Users, href: "/admin/users" },
+  { label: "Пациенты", icon: UserCircle, href: "/admin/patients" },
+  { label: "Склад", icon: Package, href: "/admin/warehouse" },
 ] as const
 
 export const navItemsBottom: readonly DashboardNavItem[] = [
@@ -49,6 +58,21 @@ export const navItemsBottom: readonly DashboardNavItem[] = [
   { label: "Поддержка", icon: HelpCircle, href: "/support" },
 ] as const
 
-export function getMainNavItems(isAdmin: boolean): DashboardNavItem[] {
-  return [...navItemsBase, ...(isAdmin ? navItemsAdmin : [])]
+export function getMainNavItems(role: string): DashboardNavItem[] {
+  const items = [...navItemsBase]
+
+  if (role === "DOCTOR") {
+    items.push(...navItemsDoctor)
+  }
+
+  if (role === "OWNER" || role === "MANAGER") {
+    items.push(...navItemsOwner)
+    items.push(...navItemsAdmin)
+  }
+
+  if (role === "OWNER") {
+    // Владелец видит всё
+  }
+
+  return items
 }

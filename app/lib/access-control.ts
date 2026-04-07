@@ -1,43 +1,58 @@
-import { prisma } from "@/lib/prisma"
+/**
+ * Ролевая модель доступа ДаоДент
+ *
+ * OWNER    — полный доступ ко всем модулям
+ * MANAGER  — расписание, CRM, отчёты, видео. Без финансов владельца и маркетинга
+ * DOCTOR   — своё расписание, свои пациенты, зубная формула, голосовой ввод
+ * ADMIN    — CRM, запись пациентов, расписание всех врачей, обработка заявок
+ */
 
-interface LessonAccessContext {
-  lessonId: string
-  userId: string
-  role?: string
+type Role = "OWNER" | "MANAGER" | "DOCTOR" | "ADMIN"
+
+export function canAccessOwnerPanel(role: string): boolean {
+  return role === "OWNER"
 }
 
-function activeEnrollmentWhere(userId: string, courseId: string) {
-  const now = new Date()
-  return {
-    userId,
-    courseId,
-    revokedAt: null,
-    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-  }
+export function canAccessManagerPanel(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER"
 }
 
-export async function canAccessLesson({
-  lessonId,
-  userId,
-  role,
-}: LessonAccessContext) {
-  const lesson = await prisma.lesson.findUnique({
-    where: { id: lessonId },
-    select: {
-      id: true,
-      module: {
-        select: { courseId: true },
-      },
-    },
-  })
+export function canAccessDoctorPanel(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER" || role === "DOCTOR"
+}
 
-  if (!lesson) return false
-  if (role === "ADMIN") return true
+export function canManagePatients(role: string): boolean {
+  return ["OWNER", "MANAGER", "ADMIN"].includes(role)
+}
 
-  const enrollment = await prisma.enrollment.findFirst({
-    where: activeEnrollmentWhere(userId, lesson.module.courseId),
-    select: { id: true },
-  })
+export function canViewFinancials(role: string): boolean {
+  return role === "OWNER"
+}
 
-  return !!enrollment
+export function canManageMarketing(role: string): boolean {
+  return role === "OWNER"
+}
+
+export function canViewMedicalRecords(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER" || role === "DOCTOR"
+}
+
+export function canManageSchedule(role: string): boolean {
+  return ["OWNER", "MANAGER", "ADMIN"].includes(role)
+}
+
+export function canManageUsers(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER"
+}
+
+export function canViewVideo(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER"
+}
+
+export function canManageWarehouse(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER"
+}
+
+export function isOwnerOrManager(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER"
 }

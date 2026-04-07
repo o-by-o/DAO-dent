@@ -1,5 +1,5 @@
 // ============================================
-// Prisma Schema — Школа косметологов DIB Academy
+// Prisma Schema — Стоматологическая клиника ДаоДент
 // ============================================
 
 generator client {
@@ -12,12 +12,14 @@ datasource db {
 }
 
 // ============================================
-// Пользователи и авторизация
+// Роли и пользователи
 // ============================================
 
 enum Role {
-  ADMIN
-  STUDENT
+  OWNER    // Владелец клиники — полный доступ
+  MANAGER  // Управляющий — расписание, CRM, отчёты, видео
+  DOCTOR   // Врач — своё расписание, свои пациенты, зубная формула
+  ADMIN    // Администратор ресепшна — CRM, запись, расписание всех врачей
 }
 
 model User {
@@ -25,120 +27,445 @@ model User {
   email          String    @unique
   name           String?
   hashedPassword String
-  role           Role      @default(STUDENT)
+  role           Role      @default(ADMIN)
   avatarUrl      String?
+  phone          String?
+  specialization String?   // для врачей: терапевт, хирург, ортодонт и т.д.
+  experience     String?   // стаж работы
+  bio            String?   @db.Text // описание для карточки врача
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   // Связи
-  enrollments    Enrollment[]
-  progress      Progress[]
-  homeworks     Homework[]
-  comments      Comment[]
-  certificates  Certificate[]
-  clientRecords  Client[]  @relation("ClientUser")   // CRM: запись как клиент
-  ownedClients   Client[]  @relation("ClientOwner")  // Мои клиенты (я — косметолог)
-  stockDocuments StockDocument[]   // Склад: документы, созданные пользователем
+  appointments       Appointment[]   @relation("DoctorAppointments")
+  patients           Patient[]       @relation("PatientDoctor")  // лечащий врач
+  treatmentPlans     TreatmentPlan[] @relation("PlanDoctor")
+  stockDocuments     StockDocument[]
   agentConversations AgentConversation[]
-  skinAnalyses       SkinAnalysis[]
-  orders             Order[]
   plannerNotes       PlannerNote[]
+  auditLogs          AuditLog[]
 
   @@map("users")
 }
 
 // ============================================
-// Агент: история переписок (OpenClaw)
+// Агент: история переписок (AI-ассистент)
 // ============================================
 
 model AgentConversation {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String   @default("Новый чат")
-  messages  Json     @default("[]") // UIMessage[] из AI SDK
-  activeCourse Json?
+  id          String   @id @default(cuid())
+  userId      String
+  title       String   @default("Новый чат")
+  messages    Json     @default("[]")
   attachments Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("agent_conversations")
 }
 
 // ============================================
-// CRM: Клиентская база
+// Пациенты (центральная сущность CRM)
 // ============================================
 
-enum ClientSource {
-  WEBSITE_USER   // ученик/покупатель с сайта
-  MESSENGER_LEAD // заявка из мессенджера
-  MANUAL         // ручной ввод
+enum PatientStatus {
+  NEW_LEAD          // Новая заявка
+  CONTACTED         // Первый контакт
+  APPOINTMENT_SCHEDULED  // Записан на приём
+  VISITED           // Был на приёме
+  TREATMENT_PLAN    // Составлен план лечения
+  IN_TREATMENT      // На лечении
+  TREATMENT_COMPLETED // Завершил лечение
+  LOST              // Потерянный
 }
 
+enum PatientSource {
+  WEBSITE         // Заявка с сайта
+  PHONE           // Звонок
+  WALK_IN         // Пришёл сам
+  REFERRAL        // По рекомендации
+  SOCIAL_MEDIA    // Соцсети
+  YANDEX_DIRECT   // Яндекс.Директ
+  YANDEX_MAPS     // Яндекс.Карты
+  TWO_GIS         // 2ГИС
+  MESSENGER       // Мессенджер
+  OTHER           // Другое
+}
+
+model Patient {
+  id              String        @id @default(cuid())
+  firstName       String
+  lastName        String
+  middleName      String?       // отчество
+  phone           String
+  email           String?
+  birthDate       DateTime?
+  gender          String?       // М/Ж
+  address         String?       // для географии пациентов
+  status          PatientStatus @default(NEW_LEAD)
+  source          PatientSource @default(OTHER)
+  utmSource       String?       // UTM-метка
+  utmMedium       String?
+  utmCampaign     String?
+
+  // Медицинские данные
+  allergies       String?       @db.Text // аллергии
+  chronicDiseases String?       @db.Text // хронические заболевания
+  contraindications String?     @db.Text // противопоказания
+
+  // Документы
+  passportData    String?       // данные паспорта (зашифровано)
+  insurancePolicy String?       // полис ОМС/ДМС
+  consentSigned   Boolean       @default(false) // согласие на обработку данных
+
+  // Связи
+  doctorId        String?       // лечащий врач
+  doctor          User?         @relation("PatientDoctor", fields: [doctorId], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  appointments    Appointment[]
+  treatmentPlans  TreatmentPlan[]
+  dentalChart     ToothRecord[]
+  medicalRecords  MedicalRecord[]
+  notes           PatientNote[]
+  payments        Payment[]
+  leads           Lead[]
+  documents       PatientDocument[]
+
+  @@map("patients")
+}
+
+model PatientNote {
+  id        String    @id @default(cuid())
+  patientId String
+  text      String    @db.Text
+  callAt    DateTime? // время напоминания о звонке
+  createdAt DateTime  @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_notes")
+}
+
+model PatientDocument {
+  id          String   @id @default(cuid())
+  patientId   String
+  name        String   // название документа
+  type        String   // passport, insurance, consent, xray, photo, other
+  fileUrl     String
+  description String?
+  createdAt   DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_documents")
+}
+
+// ============================================
+// Лиды (заявки с сайта/мессенджеров)
+// ============================================
+
 enum LeadChannel {
-  TELEGRAM
-  WHATSAPP
-  WEB_FORM
-  OTHER
+  WEBSITE_FORM    // Форма на сайте
+  CALLBACK        // Обратный звонок
+  PHONE_CALL      // Входящий звонок
+  WHATSAPP        // WhatsApp
+  TELEGRAM        // Telegram
+  VK              // ВКонтакте
+  QUIZ            // Квиз
+  AI_CHAT         // AI-ассистент на сайте
+  OTHER           // Другое
 }
 
 enum LeadStatus {
-  NEW
-  CONTACTED
-  CONVERTED
-  CLOSED
-}
-
-model Client {
-  id         String       @id @default(cuid())
-  name       String
-  email      String?
-  phone      String?
-  birthDate  DateTime?    // дата рождения
-  source     ClientSource  @default(MANUAL)
-  externalId String?       // id в мессенджере или userId
-  userId     String?       @unique // связь с пользователем кабинета
-  ownerId    String?       // косметолог, которому принадлежит клиент
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-
-  user  User?  @relation("ClientUser", fields: [userId], references: [id], onDelete: SetNull)
-  owner User?  @relation("ClientOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  leads Lead[]
-  notes ClientNote[]
-
-  @@map("clients")
-}
-
-model ClientNote {
-  id        String    @id @default(cuid())
-  clientId  String
-  text      String    @db.Text
-  callAt    DateTime? // время звонка/напоминания → календарь
-  createdAt DateTime  @default(now())
-
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@map("client_notes")
+  NEW             // Новая заявка
+  PROCESSING      // В обработке
+  CONVERTED       // Конвертирована в пациента
+  CLOSED          // Закрыта
 }
 
 model Lead {
-  id               String      @id @default(cuid())
-  clientId        String?
-  channel         LeadChannel  @default(OTHER)
-  externalThreadId String?
-  rawMessage      String?
-  status          LeadStatus   @default(NEW)
+  id              String      @id @default(cuid())
+  patientId       String?
+  channel         LeadChannel @default(OTHER)
+  name            String?     // имя из формы
+  phone           String?     // телефон из формы
+  email           String?
+  message         String?     @db.Text // сообщение/комментарий
+  service         String?     // запрашиваемая услуга
+  preferredDate   DateTime?   // желаемая дата приёма
+  preferredDoctor String?     // желаемый врач
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  status          LeadStatus  @default(NEW)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
 
   @@map("leads")
 }
 
 // ============================================
-// Склад: товары, склады, партии, остатки, документы
+// Услуги клиники
+// ============================================
+
+model ServiceCategory {
+  id        String    @id @default(cuid())
+  name      String    // Терапия, Хирургия, Имплантация и т.д.
+  slug      String    @unique
+  icon      String?   // иконка
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  services  Service[]
+
+  @@map("service_categories")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  categoryId  String
+  price       Decimal  @db.Decimal(10, 2) // базовая цена
+  priceMax    Decimal? @db.Decimal(10, 2) // максимальная цена (диапазон)
+  durationMin Int      @default(30)       // длительность в минутах
+  published   Boolean  @default(true)     // показывать на сайте
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category       ServiceCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  treatmentSteps TreatmentStep[]
+
+  @@map("services")
+}
+
+// ============================================
+// Кабинеты клиники
+// ============================================
+
+enum CabinetStatus {
+  FREE            // Свободен
+  IN_SESSION      // Приём
+  BREAK           // Перерыв
+  STERILIZATION   // Стерилизация
+}
+
+model Cabinet {
+  id        String        @id @default(cuid())
+  name      String        // "Кабинет 1", "Кабинет 2", "Кабинет 3"
+  number    Int           @unique // 1, 2, 3
+  status    CabinetStatus @default(FREE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  appointments Appointment[]
+
+  @@map("cabinets")
+}
+
+// ============================================
+// Приёмы (записи на приём)
+// ============================================
+
+enum AppointmentStatus {
+  SCHEDULED       // Запланирован
+  CONFIRMED       // Подтверждён пациентом
+  IN_PROGRESS     // Идёт приём
+  COMPLETED       // Завершён
+  CANCELLED       // Отменён
+  NO_SHOW         // Не явился
+}
+
+enum AppointmentType {
+  INITIAL_CONSULTATION  // Первичная консультация
+  TREATMENT             // Лечебный приём
+  FOLLOW_UP             // Контрольный визит
+  EMERGENCY             // Экстренный приём
+  PREVENTION            // Профилактика/гигиена
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  patientId   String
+  doctorId    String
+  cabinetId   String?
+  serviceId   String?
+  type        AppointmentType   @default(INITIAL_CONSULTATION)
+  status      AppointmentStatus @default(SCHEDULED)
+  date        DateTime          @db.Date
+  startTime   String            // "09:00" формат HH:mm
+  endTime     String            // "09:30"
+  duration    Int               @default(30) // минуты
+  notes       String?           @db.Text // заметки к приёму
+  diagnosis   String?           @db.Text // диагноз
+  treatment   String?           @db.Text // проведённое лечение
+  materials   String?           @db.Text // использованные материалы
+  recommendations String?       @db.Text // рекомендации пациенту
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  patient  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor   User     @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  cabinet  Cabinet? @relation(fields: [cabinetId], references: [id], onDelete: SetNull)
+  service  Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  payment  Payment?
+
+  @@index([doctorId, date])
+  @@index([patientId, date])
+  @@index([date, status])
+  @@map("appointments")
+}
+
+// ============================================
+// Зубная формула (интерактивная карта зубов)
+// ============================================
+
+enum ToothStatus {
+  HEALTHY         // Здоров
+  CARIES          // Кариес
+  FILLED          // Пломба
+  CROWN           // Коронка
+  MISSING         // Отсутствует
+  IMPLANT         // Имплант
+  ROOT_CANAL      // Депульпирован
+  BRIDGE          // Мостовидный протез
+  PERIDONTAL      // Пародонтит
+  EXTRACTION_NEEDED // Требует удаления
+}
+
+model ToothRecord {
+  id          String      @id @default(cuid())
+  patientId   String
+  toothNumber Int         // международная нумерация 11-48 (ISO 3950)
+  status      ToothStatus @default(HEALTHY)
+  notes       String?     @db.Text
+  updatedAt   DateTime    @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, toothNumber])
+  @@map("tooth_records")
+}
+
+// ============================================
+// Планы лечения
+// ============================================
+
+enum TreatmentPlanStatus {
+  DRAFT           // Черновик
+  PROPOSED        // Предложен пациенту
+  APPROVED        // Одобрен пациентом
+  IN_PROGRESS     // Выполняется
+  COMPLETED       // Завершён
+  CANCELLED       // Отменён
+}
+
+model TreatmentPlan {
+  id          String              @id @default(cuid())
+  patientId   String
+  doctorId    String
+  title       String              // "Лечение кариеса зубов 36, 37"
+  description String?             @db.Text
+  status      TreatmentPlanStatus @default(DRAFT)
+  totalCost   Decimal             @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  patient Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User            @relation("PlanDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  steps   TreatmentStep[]
+
+  @@map("treatment_plans")
+}
+
+model TreatmentStep {
+  id              String   @id @default(cuid())
+  treatmentPlanId String
+  serviceId       String?
+  toothNumber     Int?     // номер зуба (если применимо)
+  description     String   // описание шага
+  order           Int      @default(0)
+  cost            Decimal  @default(0) @db.Decimal(10, 2)
+  completed       Boolean  @default(false)
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  treatmentPlan TreatmentPlan @relation(fields: [treatmentPlanId], references: [id], onDelete: Cascade)
+  service       Service?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@map("treatment_steps")
+}
+
+// ============================================
+// Медицинские записи (протокол приёма)
+// ============================================
+
+model MedicalRecord {
+  id          String   @id @default(cuid())
+  patientId   String
+  date        DateTime @default(now())
+  type        String   // consultation, treatment, xray, photo_protocol
+  content     String   @db.Text  // содержание (может быть от голосового ввода)
+  attachments Json?    // [{name, url, type}] — фото, рентгены
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, date])
+  @@map("medical_records")
+}
+
+// ============================================
+// Оплаты
+// ============================================
+
+enum PaymentStatus {
+  PENDING     // Ожидает оплаты
+  PAID        // Оплачено
+  PARTIAL     // Частично оплачено
+  REFUNDED    // Возврат
+  CANCELLED   // Отменено
+}
+
+enum PaymentMethod {
+  CASH        // Наличные
+  CARD        // Карта
+  TRANSFER    // Перевод
+  INSTALLMENT // Рассрочка
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  patientId     String
+  appointmentId String?       @unique
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod @default(CARD)
+  status        PaymentStatus @default(PENDING)
+  description   String?
+  receiptUrl    String?       // URL фискального чека
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@map("payments")
+}
+
+// ============================================
+// Склад стоматологических материалов
 // ============================================
 
 enum ProductUnit {
@@ -152,8 +479,7 @@ enum ProductUnit {
 
 enum WarehouseType {
   MAIN    // основной склад
-  RETAIL  // точка продаж
-  TRANSIT // транзитный
+  CABINET // кабинет
 }
 
 enum StockDocumentType {
@@ -175,67 +501,19 @@ enum StockMovementType {
   ADJUSTMENT
 }
 
-// ============================================
-// Витрина магазина (категории)
-// ============================================
-
-model StoreCategory {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  order     Int      @default(0)
-  parentId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  parent   StoreCategory?  @relation("CategoryChildren", fields: [parentId], references: [id], onDelete: SetNull)
-  children StoreCategory[] @relation("CategoryChildren")
-  products Product[]
-
-  @@map("store_categories")
-}
-
-// ============================================
-// Редактируемый контент сайта (OpenClaw, админка)
-// ============================================
-
-model SiteContent {
-  id        String   @id @default(cuid())
-  key       String   @unique // hero_title, shop_subtitle, footer_phone, etc.
-  value     String   @db.Text
-  updatedAt DateTime @updatedAt
-
-  @@map("site_content")
-}
-
-// ============================================
-// Склад: товары, склады, партии, остатки, документы
-// ============================================
-
 model Product {
   id          String      @id @default(cuid())
   sku         String      @unique
   name        String
   unit        ProductUnit @default(PCS)
   trackBatch  Boolean     @default(false)
+  minQuantity Decimal?    @db.Decimal(18, 4) // минимальный остаток (алерт)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  // Витрина магазина
-  description String?
-  price       Decimal?    @db.Decimal(10, 2) // цена в рублях, null = не для продажи
-  imageUrl    String?
-  slug        String?     @unique // для /shop/[slug], генерируется из name
-  published   Boolean     @default(false) // показывать на витрине
-  order       Int         @default(0) // порядок отображения
-  categoryId  String?
-  brand       String?     // производитель: Dr.PaceLeader, DERMACHIC, CreBeau
-
-  category   StoreCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   batches    Batch[]
   stocks     Stock[]
   movements  StockMovement[]
-  orderItems OrderItem[]
 
   @@map("products")
 }
@@ -260,8 +538,8 @@ model Batch {
   batchNumber  String?
   createdAt    DateTime  @default(now())
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  stocks  Stock[]
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stocks    Stock[]
   movements StockMovement[]
 
   @@map("batches")
@@ -287,7 +565,7 @@ model StockDocument {
   type         StockDocumentType
   number       String              @unique
   documentDate DateTime            @default(now())
-  status       StockDocumentStatus  @default(DRAFT)
+  status       StockDocumentStatus @default(DRAFT)
   comment      String?
   createdById  String?
 
@@ -307,212 +585,40 @@ model StockMovement {
   productId   String
   warehouseId String
   batchId     String?
-  quantity    Decimal            @db.Decimal(18, 4) // + приход/перемещение в, - расход/перемещение из
-
-  createdAt DateTime @default(now())
+  quantity    Decimal           @db.Decimal(18, 4)
+  createdAt   DateTime          @default(now())
 
   document  StockDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  product  Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  warehouse Warehouse   @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  batch    Batch?       @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  batch     Batch?        @relation(fields: [batchId], references: [id], onDelete: SetNull)
 
   @@map("stock_movements")
 }
 
 // ============================================
-// Курсы, модули, уроки
+// Редактируемый контент сайта
 // ============================================
 
-model Course {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  slug        String   @unique
-  thumbnailUrl String?
-  published   Boolean  @default(false)
-  author      String   @default("Айхаана Данилова")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // AI-генерация (OpenClaw)
-  aiGenerated Boolean  @default(false)
-  aiMetadata  Json?
-
-  // Связи
-  modules      Module[]
-  enrollments  Enrollment[]
-  certificates Certificate[]
-  orderItems   OrderItem[]
-
-  @@map("courses")
-}
-
-model Module {
+model SiteContent {
   id        String   @id @default(cuid())
-  title     String
-  order     Int
-  courseId  String
-  createdAt DateTime @default(now())
-
-  // Связи
-  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons Lesson[]
-
-  @@unique([courseId, order])
-  @@map("modules")
-}
-
-model Lesson {
-  id             String   @id @default(cuid())
-  title          String
-  description    String?
-  order          Int
-  durationMin    Int      @default(0) // длительность в минутах
-  rotate90       Boolean  @default(false)
-  moduleId       String
-  createdAt      DateTime @default(now())
-
-  // MUX видео
-  muxAssetId     String?  // ID ассета в MUX
-  muxPlaybackId  String?  // Playback ID для MuxPlayer
-  muxStatus      String?  // "preparing" | "ready" | "errored"
-
-  // Материалы (JSON массив {name, url, size})
-  materials      Json?
-
-  // AI-генерация
-  aiGenerated    Boolean  @default(false)
-
-  // Связи
-  module    Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress  Progress[]
-  homeworks Homework[]
-  comments  Comment[]
-
-  @@unique([moduleId, order])
-  @@map("lessons")
-}
-
-// ============================================
-// Запись на курс (enrollment)
-// ============================================
-
-model Enrollment {
-  id        String    @id @default(cuid())
-  userId    String
-  courseId   String
-  createdAt DateTime  @default(now())
-  expiresAt DateTime?              // дата окончания лицензии (null = бессрочно)
-  revokedAt DateTime?              // дата ручного отзыва доступа (null = активен)
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, courseId])
-  @@map("enrollments")
-}
-
-// ============================================
-// Прогресс прохождения уроков
-// ============================================
-
-model Progress {
-  id          String   @id @default(cuid())
-  userId      String
-  lessonId    String
-  completed   Boolean  @default(false)
-  completedAt DateTime?
-  createdAt   DateTime @default(now())
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, lessonId])
-  @@map("progress")
-}
-
-// ============================================
-// Домашние задания
-// ============================================
-
-enum HomeworkStatus {
-  SUBMITTED
-  REVIEWED
-  REVISION_NEEDED
-}
-
-model Homework {
-  id        String         @id @default(cuid())
-  userId    String
-  lessonId  String
-  fileUrl   String         // URL загруженного файла
-  fileName  String
-  comment   String?        // комментарий студента
-  status    HomeworkStatus @default(SUBMITTED)
-  feedback  String?        // обратная связь от преподавателя
-  grade     Int?           // оценка (1-10)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-
-  @@map("homeworks")
-}
-
-// ============================================
-// Комментарии к урокам
-// ============================================
-
-model Comment {
-  id        String   @id @default(cuid())
-  text      String
-  userId    String
-  lessonId  String
-  parentId  String?  // для вложенных комментариев
-  createdAt DateTime @default(now())
+  key       String   @unique
+  value     String   @db.Text
   updatedAt DateTime @updatedAt
 
-  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson  Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies Comment[] @relation("CommentReplies")
-
-  @@map("comments")
+  @@map("site_content")
 }
 
 // ============================================
-// Сертификаты
-// ============================================
-
-model Certificate {
-  id                String   @id @default(cuid())
-  userId            String
-  courseId          String
-  certificateNumber String   @unique
-  issuedAt          DateTime @default(now())
-  pdfUrl            String?  // URL сгенерированного PDF (опционально)
-  createdAt         DateTime @default(now())
-
-  // Связи
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, courseId])
-  @@map("certificates")
-}
-
-// ============================================
-// RAG: база знаний (pgvector)
+// RAG: база знаний
 // ============================================
 
 model KnowledgeChunk {
   id        String   @id @default(cuid())
-  source    String   // "product", "procedure", "ingredient", "faq", "article"
-  sourceId  String?  // ID связанной сущности (productId, etc.)
+  source    String   // "service", "procedure", "faq", "article", "dental_info"
+  sourceId  String?
   title     String
   content   String   @db.Text
-  // embedding Unsupported("vector(1536)")? // requires pgvector — enable after installing on the DB server
   metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -529,82 +635,13 @@ model SocialPost {
   content     String    @db.Text
   imageUrl    String?
   platforms   String[]  // ["telegram", "vk"]
-  status      String    @default("draft") // draft, published, failed, partial
+  status      String    @default("draft")
   publishedAt DateTime?
-  results     Json?     // {telegram: {messageId, ok}, vk: {postId, ok}}
-  error       String?   // Текст ошибки, если failed
+  results     Json?
+  error       String?
   createdAt   DateTime  @default(now())
 
   @@map("social_posts")
-}
-
-// ============================================
-// Диагностика кожи
-// ============================================
-
-model SkinAnalysis {
-  id        String   @id @default(cuid())
-  userId    String?
-  imageUrl  String
-  result    Json     // {skinType, concerns[], recommendations[], summary}
-  createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id])
-
-  @@map("skin_analyses")
-}
-
-// ============================================
-// Заказы (курсы + товары)
-// ============================================
-
-enum OrderStatus {
-  PENDING
-  PAID
-  SHIPPED
-  DELIVERED
-  CANCELLED
-  REFUNDED
-}
-
-enum OrderType {
-  COURSE
-  PRODUCT
-  MIXED
-}
-
-model Order {
-  id          String      @id @default(cuid())
-  userId      String
-  orderNumber String      @unique
-  type        OrderType
-  status      OrderStatus @default(PENDING)
-  totalAmount Decimal     @db.Decimal(10, 2)
-  paymentId   String?
-  note        String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items OrderItem[]
-
-  @@map("orders")
-}
-
-model OrderItem {
-  id         String  @id @default(cuid())
-  orderId    String
-  productId  String?
-  courseId    String?
-  quantity   Int     @default(1)
-  unitPrice  Decimal @db.Decimal(10, 2)
-  totalPrice Decimal @db.Decimal(10, 2)
-
-  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  course  Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
-
-  @@map("order_items")
 }
 
 // ============================================
@@ -615,10 +652,10 @@ model PlannerNote {
   id        String   @id @default(cuid())
   userId    String
   date      DateTime @db.Date
-  time      String?  // "14:30" формат HH:mm, null = целодневное
+  time      String?  // "14:30"
   title     String
   text      String?  @db.Text
-  color     String?  // hex цвет, например "#3b82f6"
+  color     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -626,4 +663,24 @@ model PlannerNote {
 
   @@index([userId, date])
   @@map("planner_notes")
+}
+
+// ============================================
+// Аудит-лог (журнал действий)
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // "patient.create", "appointment.update", "payment.create"
+  entity    String   // "patient", "appointment", etc.
+  entityId  String?
+  details   Json?    // подробности изменения
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@map("audit_logs")
 }

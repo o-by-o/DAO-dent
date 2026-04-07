@@ -2,36 +2,29 @@
 
 import Link from "next/link"
 import { BrandLogo } from "@/components/brand-logo"
+import {
+  clinicSocial,
+  clinicWorkingHours,
+} from "@/lib/dib-interfarm-content"
 
 export type SiteFooterProps = {
   footerPhone: string
-  footerPhone2: string
+  footerPhoneSecondary: string
   footerAddress: string
   footerEmail: string
-  shopHref: string
-  catalogHref: string
-  diagnosticsHref: string
 }
-
-const social = [
-  { label: "Telegram", href: "https://t.me/dib_interfarm" },
-  { label: "VK", href: "https://vk.com" },
-]
 
 export function SiteFooter({
   footerPhone,
-  footerPhone2,
+  footerPhoneSecondary,
   footerAddress,
   footerEmail,
-  shopHref,
-  catalogHref,
-  diagnosticsHref,
 }: SiteFooterProps) {
   return (
-    <footer className="relative overflow-hidden bg-card pb-10 pt-20">
+    <footer className="relative overflow-hidden bg-gray-900 pb-10 pt-20 text-gray-300">
       <div className="pointer-events-none absolute bottom-0 left-1/2 z-0 -translate-x-1/2 select-none">
-        <span className="whitespace-nowrap font-serif text-[72px] font-bold leading-none text-white/25 sm:text-[120px] md:text-[200px] lg:text-[260px]">
-          DIB-INTERFARM
+        <span className="whitespace-nowrap font-serif text-[72px] font-bold leading-none text-white/[0.03] sm:text-[120px] md:text-[200px]">
+          ДаоДент
         </span>
       </div>
 
@@ -39,20 +32,20 @@ export function SiteFooter({
         <div className="mb-16 grid grid-cols-2 gap-10 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block">
-              <BrandLogo showTagline className="h-8 w-auto max-w-[200px] opacity-90" />
+              <BrandLogo showTagline useCurrentColor className="h-10 w-auto text-white" />
             </Link>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Профессиональная косметика, курсы для косметологов и AI-диагностика лица. Ваш партнёр в
-              красоте.
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-gray-400">
+              Семейная стоматология у метро Семёновская. Безболезненное лечение для
+              всей семьи с применением современных технологий.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              {social.map((s) => (
+              {clinicSocial.map((s) => (
                 <a
                   key={s.label}
                   href={s.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full border border-border/60 bg-background px-4 py-2 text-xs font-medium text-foreground/70 boty-transition boty-shadow hover:text-foreground"
+                  className="rounded-full border border-gray-700 bg-gray-800 px-4 py-2 text-xs font-medium text-gray-300 transition hover:border-blue-500 hover:text-white"
                 >
                   {s.label}
                 </a>
@@ -61,87 +54,55 @@ export function SiteFooter({
           </div>
 
           <div>
-            <h3 className="mb-4 font-medium text-foreground">Разделы</h3>
+            <h3 className="mb-4 font-medium text-white">Разделы</h3>
             <ul className="space-y-3">
-              <li>
-                <Link href={shopHref} className="text-sm text-muted-foreground boty-transition hover:text-foreground">
-                  Магазин
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href={catalogHref}
-                  className="text-sm text-muted-foreground boty-transition hover:text-foreground"
-                >
-                  Курсы
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href={diagnosticsHref}
-                  className="text-sm text-muted-foreground boty-transition hover:text-foreground"
-                >
-                  Диагностика
-                </Link>
-              </li>
-              <li>
-                <Link href="/login" className="text-sm text-muted-foreground boty-transition hover:text-foreground">
-                  Вход
-                </Link>
-              </li>
+              <li><a href="#services" className="text-sm text-gray-400 transition hover:text-white">Услуги</a></li>
+              <li><a href="#doctors" className="text-sm text-gray-400 transition hover:text-white">Врачи</a></li>
+              <li><a href="#reviews" className="text-sm text-gray-400 transition hover:text-white">Отзывы</a></li>
+              <li><a href="#appointment" className="text-sm text-gray-400 transition hover:text-white">Запись</a></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-4 font-medium text-foreground">Поддержка</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/support" className="text-sm text-muted-foreground boty-transition hover:text-foreground">
-                  Поддержка
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/settings"
-                  className="text-sm text-muted-foreground boty-transition hover:text-foreground"
-                >
-                  Настройки
-                </Link>
-              </li>
+            <h3 className="mb-4 font-medium text-white">Режим работы</h3>
+            <ul className="space-y-2 text-sm text-gray-400">
+              <li>{clinicWorkingHours.weekdays}</li>
+              <li>{clinicWorkingHours.saturday}</li>
+              <li>{clinicWorkingHours.sunday}</li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-4 font-medium text-foreground">Контакты</h3>
-            <div className="space-y-2 text-sm text-muted-foreground">
+            <h3 className="mb-4 font-medium text-white">Контакты</h3>
+            <div className="space-y-2 text-sm text-gray-400">
               <p className="leading-relaxed">{footerAddress}</p>
               <a
                 href={`tel:${footerPhone.replace(/\s/g, "")}`}
-                className="block boty-transition hover:text-foreground"
+                className="block transition hover:text-white"
               >
                 {footerPhone}
               </a>
               <a
-                href={`tel:${footerPhone2.replace(/\s/g, "")}`}
-                className="block boty-transition hover:text-foreground"
+                href={`tel:${footerPhoneSecondary.replace(/\s/g, "")}`}
+                className="block transition hover:text-white"
               >
-                {footerPhone2}
+                {footerPhoneSecondary}
               </a>
-              <a href={`mailto:${footerEmail}`} className="block boty-transition hover:text-foreground">
+              <a href={`mailto:${footerEmail}`} className="block transition hover:text-white">
                 {footerEmail}
               </a>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-border/50 pt-10">
+        <div className="border-t border-gray-800 pt-10">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} DIB-INTERFARM. Все права защищены.
+            <p className="text-sm text-gray-500">
+              &copy; {new Date().getFullYear()} ДаоДент. Все права защищены.
             </p>
-            <div className="flex gap-6">
-              <span className="text-sm text-muted-foreground/80">DIB Academy</span>
-            </div>
+            <p className="text-xs text-gray-600">
+              Имеются противопоказания. Необходима консультация специалиста.
+            </p>
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ import "./globals.css"
 import { cn } from "@/lib/utils"
 
 const dmSans = DM_Sans({
-  subsets: ["latin", "latin-ext"],
+  subsets: ["latin", "latin-ext", "cyrillic"],
   variable: "--font-dm-sans",
   weight: ["300", "400", "500", "600"],
 })
@@ -20,13 +20,21 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: "DIB Academy",
+  title: "ДаоДент — Семейная стоматология у м. Семёновская",
   description:
-    "Онлайн-академия косметологии DIB-INTERFARM: курсы, магазин профессиональной косметики и сервисы для специалистов.",
+    "Стоматологическая клиника ДаоДент у метро Семёновская. Лечение зубов, имплантация, ортодонтия, детская стоматология. 5 минут пешком от метро. Запись онлайн.",
+  keywords: [
+    "стоматология семёновская",
+    "зубной врач семёновская",
+    "стоматологическая клиника соколиная гора",
+    "лечение зубов измайлово",
+    "имплантация зубов семёновская",
+    "детский стоматолог семёновская",
+  ],
 }
 
 export const viewport: Viewport = {
-  themeColor: "#F7F4EF",
+  themeColor: "#2563EB",
   width: "device-width",
   initialScale: 1,
 }
