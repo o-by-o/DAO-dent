@@ -143,12 +143,46 @@ export function PatientDetailPage({
             )}
           </div>
         </div>
-        <button
-          onClick={() => setShowAppointmentModal(true)}
-          className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
-        >
-          Записать на приём
-        </button>
+        <div className="flex gap-2">
+          {/* Печать документов */}
+          <div className="relative group">
+            <button className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+              Документы
+            </button>
+            <div className="absolute right-0 top-full z-20 mt-1 hidden w-56 rounded-xl border border-gray-100 bg-white p-1 shadow-lg group-hover:block">
+              {[
+                { type: "consent", label: "Согласие на лечение" },
+                { type: "personal_data", label: "Согласие на обработку ПД" },
+                { type: "extract", label: "Выписка из карты" },
+                { type: "certificate", label: "Справка о лечении" },
+              ].map((doc) => (
+                <button
+                  key={doc.type}
+                  type="button"
+                  onClick={async () => {
+                    const res = await fetch(`/api/admin/patients/${patient.id}/documents`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ type: doc.type }),
+                    })
+                    const html = await res.text()
+                    const win = window.open("", "_blank")
+                    if (win) { win.document.write(html); win.document.close(); win.print() }
+                  }}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
+                >
+                  {doc.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => setShowAppointmentModal(true)}
+            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Записать на приём
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
