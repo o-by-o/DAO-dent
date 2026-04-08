@@ -43,6 +43,7 @@ export default async function AdminPatientDetailRoute({
           },
         },
         dentalChart: { orderBy: { toothNumber: "asc" } },
+        medicalRecords: { orderBy: { date: "desc" } },
         notes: { orderBy: { createdAt: "desc" } },
         payments: { orderBy: { createdAt: "desc" }, take: 20 },
         documents: { orderBy: { createdAt: "desc" } },

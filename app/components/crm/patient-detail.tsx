@@ -16,6 +16,7 @@ import {
 import { DentalChart } from "@/components/dental/dental-chart"
 import { AppointmentModal } from "@/components/crm/appointment-modal"
 import { TreatmentPlanForm } from "@/components/doctor/treatment-plan-form"
+import { MedicalRecords } from "@/components/crm/medical-records"
 import { useState } from "react"
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -86,6 +87,14 @@ type PatientFull = {
     amount: { toString(): string }
     status: string
     method: string
+    createdAt: Date | string
+  }>
+  medicalRecords?: Array<{
+    id: string
+    date: Date | string
+    type: string
+    content: string
+    attachments: unknown
     createdAt: Date | string
   }>
   documents: Array<{
@@ -316,6 +325,13 @@ export function PatientDetailPage({
             editable
             patientId={patient.id}
             onStatusChange={() => window.location.reload()}
+          />
+
+          {/* ЭМК — электронная медицинская карта */}
+          <MedicalRecords
+            patientId={patient.id}
+            records={patient.medicalRecords || []}
+            editable
           />
 
           {/* Планы лечения */}

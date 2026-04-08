@@ -18,6 +18,7 @@ import { DentalChart } from "@/components/dental/dental-chart"
 import { AppointmentModal } from "@/components/crm/appointment-modal"
 import { VoiceInput } from "@/components/doctor/voice-input"
 import { VoiceCommands, type VoiceCommand } from "@/components/doctor/voice-commands"
+import { MedicalRecords } from "@/components/crm/medical-records"
 
 type AppointmentFull = {
   id: string
@@ -40,6 +41,7 @@ type AppointmentFull = {
     allergies: string | null
     chronicDiseases: string | null
     dentalChart: Array<{ toothNumber: number; status: string; notes: string | null }>
+    medicalRecords?: Array<{ id: string; date: Date | string; type: string; content: string; attachments: unknown; createdAt: Date | string }>
     treatmentPlans: Array<{
       id: string
       title: string
@@ -126,11 +128,27 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
         recommendations,
       }),
     })
-    setSaving(false)
     if (res.ok) {
+      // Автоматически сохраняем запись в ЭМК
+      const emkContent = [
+        diagnosis && `Диагноз: ${diagnosis}`,
+        treatmentText && `Лечение: ${treatmentText}`,
+        materials && `Материалы: ${materials}`,
+        recommendations && `Рекомендации: ${recommendations}`,
+      ].filter(Boolean).join("\n")
+
+      if (emkContent) {
+        await fetch(`/api/admin/patients/${patient.id}/medical-records`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "treatment", content: emkContent }),
+        })
+      }
+
       setStatus("COMPLETED")
-      router.refresh()
     }
+    setSaving(false)
+    router.refresh()
   }
 
   async function saveProgress() {
@@ -413,6 +431,13 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
             }))}
             editable={isActive}
             patientId={patient.id}
+          />
+
+          {/* ЭМК — предыдущие записи */}
+          <MedicalRecords
+            patientId={patient.id}
+            records={patient.medicalRecords || []}
+            editable={isActive}
           />
         </div>
       </div>
