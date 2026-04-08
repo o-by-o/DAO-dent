@@ -14,7 +14,7 @@ export function AgentClient({ chatId, initialMessages = [] }: AgentClientProps) 
   const endRef = useRef<HTMLDivElement>(null)
 
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/chat" }),
+    () => new DefaultChatTransport({ api: "/api/agent" }),
     [],
   )
 
@@ -72,11 +72,28 @@ export function AgentClient({ chatId, initialMessages = [] }: AgentClientProps) 
                 ? "rounded-tl-md border border-gray-100 bg-gray-50 text-gray-700"
                 : "rounded-tr-md bg-blue-600 text-white"
             }`}>
-              {msg.parts?.map((part, j) =>
-                part.type === "text" ? (
-                  <p key={j} className="whitespace-pre-wrap leading-relaxed">{part.text}</p>
-                ) : null,
-              )}
+              {msg.parts?.map((part, j) => {
+                if (part.type === "text") {
+                  return <p key={j} className="whitespace-pre-wrap leading-relaxed">{part.text}</p>
+                }
+                if (part.type === "tool-invocation") {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const inv = (part as any).toolInvocation
+                  return (
+                    <div key={j} className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-xs">
+                      <span className="font-medium text-blue-700">
+                        {inv?.state === "result" ? "✓" : "⏳"} {inv?.toolName}
+                      </span>
+                      {inv?.state === "result" && inv?.result && (
+                        <pre className="mt-1 max-h-40 overflow-auto text-[10px] text-gray-600">
+                          {JSON.stringify(inv.result, null, 2).slice(0, 500)}
+                        </pre>
+                      )}
+                    </div>
+                  )
+                }
+                return null
+              })}
             </div>
           </div>
         ))}
