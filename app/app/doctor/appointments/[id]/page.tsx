@@ -24,6 +24,7 @@ export default async function AppointmentSessionRoute({
       patient: {
         include: {
           dentalChart: { orderBy: { toothNumber: "asc" } },
+          medicalRecords: { orderBy: { date: "desc" }, take: 10 },
           treatmentPlans: {
             where: { status: { in: ["APPROVED", "IN_PROGRESS"] } },
             include: { steps: { orderBy: { order: "asc" } } },
