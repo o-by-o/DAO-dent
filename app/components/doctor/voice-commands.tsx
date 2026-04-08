@@ -128,22 +128,24 @@ export function VoiceCommands({ onCommand, enabled = true }: Props) {
   const [supported, setSupported] = useState(true)
   const [lastCommand, setLastCommand] = useState<string | null>(null)
   const [interimText, setInterimText] = useState("")
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const startListening = useCallback(() => {
     if (!supported || !enabled) return
 
     const SpeechRecognition =
-      (window as unknown as { SpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
+      (window as unknown as { SpeechRecognition?: new (...args: unknown[]) => unknown }).SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new (...args: unknown[]) => unknown }).webkitSpeechRecognition
 
     if (!SpeechRecognition) {
       setSupported(false)
       return
     }
 
-    const recognition = new SpeechRecognition()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition = new SpeechRecognition() as any
     recognition.lang = "ru-RU"
     recognition.continuous = true
     recognition.interimResults = true
@@ -153,7 +155,7 @@ export function VoiceCommands({ onCommand, enabled = true }: Props) {
       setListening(true)
     }
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: Event & { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; [j: number]: { transcript: string } } } }) => {
       let interim = ""
       let final = ""
 
@@ -180,7 +182,7 @@ export function VoiceCommands({ onCommand, enabled = true }: Props) {
       }
     }
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: Event & { error: string }) => {
       // "no-speech" и "aborted" — нормальные ситуации, перезапускаем
       if (event.error === "no-speech" || event.error === "aborted") {
         // Тихо перезапустим
@@ -243,8 +245,8 @@ export function VoiceCommands({ onCommand, enabled = true }: Props) {
   // Проверка поддержки при монтировании
   useEffect(() => {
     const SpeechRecognition =
-      (window as unknown as { SpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
+      (window as unknown as { SpeechRecognition?: new (...args: unknown[]) => unknown }).SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new (...args: unknown[]) => unknown }).webkitSpeechRecognition
 
     if (!SpeechRecognition) {
       setSupported(false)

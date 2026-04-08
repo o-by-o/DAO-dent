@@ -7,7 +7,6 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    // В dev логи запросов отключены — включайте ["query"] при отладке (иначе тормозит)
     log: process.env.NODE_ENV === "development" ? [] : [],
   })
 

@@ -36,6 +36,8 @@ export default async function OwnerAnalyticsPage() {
     monthRevenue: 0,
     totalRevenue: 0,
     pendingPayments: 0,
+    dailyRevenue: [] as Array<{ date: string; revenue: number; appointments: number }>,
+    avgCheckByDoctor: [] as Array<{ name: string; avgCheck: number; totalRevenue: number; count: number }>,
   }
 
   try {

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 
 /**
@@ -23,7 +24,7 @@ export async function logAudit({
         action,
         entity,
         entityId: entityId || null,
-        details: details ? (details as object) : null,
+        details: details ? (details as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
     })
   } catch (err) {

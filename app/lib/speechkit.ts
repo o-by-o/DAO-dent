@@ -69,7 +69,7 @@ export async function recognizeSpeech(
         Authorization: `Api-Key ${config.apiKey}`,
         "Content-Type": contentType,
       },
-      body: audioData,
+      body: audioData as unknown as BodyInit,
     })
 
     if (!response.ok) {

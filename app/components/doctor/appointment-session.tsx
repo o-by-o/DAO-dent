@@ -422,7 +422,7 @@ export function AppointmentSessionPage({ appointment }: { appointment: Appointme
         patientId={patient.id}
         patientName={`${patient.lastName} ${patient.firstName}`}
         doctors={[]}
-        services={appointment.service ? [appointment.service] : []}
+        services={appointment.service ? [{ ...appointment.service, durationMin: 30 }] : []}
         open={showNextVisit}
         onClose={() => setShowNextVisit(false)}
         onSuccess={() => router.push("/doctor/appointments")}

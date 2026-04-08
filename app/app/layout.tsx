@@ -1,23 +1,7 @@
 import React from "react"
 import type { Metadata, Viewport } from "next"
-import { Analytics } from "@vercel/analytics/next"
-import { DM_Sans, Playfair_Display } from "next/font/google"
 import { Providers } from "./providers"
 import "./globals.css"
-import { cn } from "@/lib/utils"
-
-const dmSans = DM_Sans({
-  subsets: ["latin", "latin-ext", "cyrillic"],
-  variable: "--font-dm-sans",
-  weight: ["300", "400", "500", "600"],
-})
-
-const playfair = Playfair_Display({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-playfair",
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-})
 
 export const metadata: Metadata = {
   title: "ДаоДент — Семейная стоматология у м. Семёновская",
@@ -45,11 +29,19 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className={cn("font-sans", dmSans.variable, playfair.variable)}>
+    <html lang="ru">
+      <head>
+        {/* Подключаем шрифты через link — не блокирует билд без сети */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap&subset=cyrillic"
+          rel="stylesheet"
+        />
+      </head>
       <body className="font-sans antialiased">
         <Providers>
           {children}
-          <Analytics />
         </Providers>
       </body>
     </html>

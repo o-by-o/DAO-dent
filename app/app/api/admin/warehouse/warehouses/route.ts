@@ -41,8 +41,8 @@ export async function POST(request: Request) {
   if (!name) {
     return NextResponse.json({ error: "Название обязательно" }, { status: 400 })
   }
-  const type = ["MAIN", "RETAIL", "TRANSIT"].includes(body.type ?? "")
-    ? (body.type as "MAIN" | "RETAIL" | "TRANSIT")
+  const type = ["MAIN", "CABINET"].includes(body.type ?? "")
+    ? (body.type as "MAIN" | "CABINET")
     : "MAIN"
 
   const warehouse = await prisma.warehouse.create({

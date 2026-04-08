@@ -21,8 +21,6 @@ interface Product {
   sku: string
   name: string
   unit: string
-  price: number | null
-  categoryId: string | null
 }
 
 interface Category {
