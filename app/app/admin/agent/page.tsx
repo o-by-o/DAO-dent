@@ -9,9 +9,9 @@ export default async function AgentPage({
   searchParams: Promise<{ chat?: string }>
 }) {
   const session = await auth()
-  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
-    redirect("/login")
-  }
+  if (!session?.user) redirect("/login")
+  const role = (session.user as { role?: string }).role
+  if (role !== "OWNER" && role !== "MANAGER") redirect("/home")
 
   const userId = session.user.id as string
   const userExists = await prisma.user.findUnique({

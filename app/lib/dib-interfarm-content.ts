@@ -1,138 +1,136 @@
 /**
- * Публичные материалы с витрины dib-interfarm.ru (изображения и формулировки главной страницы).
- * Используются на лендинге для согласованности с действующим сайтом компании.
+ * Контент клиники ДаоДент для лендинга и компонентов.
  */
-export const DIB_INTERFARM_ORIGIN = "https://dib-interfarm.ru" as const
 
-export type DibInterfarmHeroSlide = {
-  imageUrl: string
-  title: string
-  subtitle: string
+export const CLINIC_NAME = "ДаоДент" as const
+export const CLINIC_FULL_NAME = "Стоматологическая клиника ДаоДент" as const
+export const CLINIC_TAGLINE = "Семейная стоматология у м. Семёновская" as const
+
+export const clinicPhone = "+7 (495) 000-00-00"
+export const clinicPhoneSecondary = "+7 (906) 000-00-00"
+export const clinicAddress = "г. Москва, ул. Семёновская, д. XX, м. Семёновская — 5 минут пешком"
+export const clinicEmail = "info@daodent.ru"
+
+export const clinicWorkingHours = {
+  weekdays: "Пн–Пт: 9:00–21:00",
+  saturday: "Сб: 10:00–18:00",
+  sunday: "Вс: выходной",
 }
 
-/** Три ключевых баннера главной dib-interfarm.ru (категории + обучение) */
-export const dibInterfarmHeroSlides: readonly DibInterfarmHeroSlide[] = [
-  {
-    imageUrl: `${DIB_INTERFARM_ORIGIN}/thumb/2/iPsw_eJ5nx4qUFSZYbTHbQ/1200r1200/d/apparat.jpg`,
-    title: "Аппаратная косметология",
-    subtitle:
-      "Современные процедуры с мгновенным эффектом без боли, уколов и длительной реабилитации",
-  },
-  {
-    imageUrl: `${DIB_INTERFARM_ORIGIN}/thumb/2/KxS3SawL_mSJyLN1uzuZtQ/1200r1200/d/krem.jpg`,
-    title: "Совершенство во всём",
-    subtitle: "Выбирайте свой образ в работе с профессиональной косметикой",
-  },
-  {
-    imageUrl: `${DIB_INTERFARM_ORIGIN}/thumb/2/8PUtFDL5tSE6tcdJWlX1xg/1200r1200/d/ampuly.jpg`,
-    title: "Уход, который работает",
-    subtitle:
-      "Подбираем средства по типу кожи, сезону и задачам. Проверенные бренды и оригинальные формулы",
-  },
+export const clinicGeo = {
+  lat: 55.7818,
+  lng: 37.7193,
+  metro: "Семёновская",
+  districts: ["Соколиная Гора", "Измайлово", "Электрозаводская", "Преображенское"],
+}
+
+export const clinicSocial = [
+  { label: "Telegram", href: "https://t.me/daodent" },
+  { label: "WhatsApp", href: "https://wa.me/74950000000" },
+  { label: "ВКонтакте", href: "https://vk.com/daodent" },
 ]
 
-/** Фоновый кадр с главной витрины (визуальный якорь бренда) */
-export const dibInterfarmHeroBackdropUrl = `${DIB_INTERFARM_ORIGIN}/thumb/2/YX3fzCIqyzCScESQbeJ1uQ/1200r1200/d/111.jpg`
-
-/** Иллюстрация блока «Обучение» с раздела курсов на dib-interfarm.ru */
-export const dibInterfarmCoursesSpotlightUrl = `${DIB_INTERFARM_ORIGIN}/thumb/2/pplt9xdRMBIxA8nLFY-SeQ/1200r1200/d/ucheba.jpg`
-
-/** Доп. телефон с сайта */
-export const dibInterfarmPhoneSecondary = "+7 (906) 051-76-13"
-
-/** Адрес офиса с dib-interfarm.ru */
-export const dibInterfarmAddress = "г. Москва, ул. Александры Монаховой, 43 к. 1"
-
-/**
- * Запасные изображения для тизеров товаров, если в БД нет imageUrl
- * (миниатюры каталога с dib-interfarm.ru).
- */
-export const dibInterfarmProductFallbackImages: readonly string[] = [
-  `${DIB_INTERFARM_ORIGIN}/thumb/2/40BVa5B9btWUwtzHCpHWNA/1200r1200/d/g1_651524.jpg`,
-  `${DIB_INTERFARM_ORIGIN}/thumb/2/Dc1JU8b_m4AOPftSqcqtZA/800r800/d/img_1jpg.jpg`,
-  `${DIB_INTERFARM_ORIGIN}/thumb/2/8RTaHbVYQ-k1X6zztu_IZw/1200r1200/d/img_1jpg.jpg`,
-  `${DIB_INTERFARM_ORIGIN}/thumb/2/KxS3SawL_mSJyLN1uzuZtQ/1200r1200/d/krem.jpg`,
-]
-
-/**
- * Статичные тизеры товаров для лендинга (когда в БД нет published-товаров).
- * Иллюстрации — сгенерированы под визуал DIB Academy (премиальный K-beauty / клиника).
- */
-export const dibInterfarmFallbackProducts = [
+/** Статичные карточки услуг для лендинга (когда в БД нет данных) */
+export const fallbackServices = [
   {
-    id: "fp-1",
-    name: "Крем двойной антибактериальный. 50 мл",
-    brand: "Dr.PaceLeader",
-    priceLabel: "3 390 ₽",
-    imageUrl: "/images/landing/landing-product-01-skincare.png",
-    fallbackImageUrl: null,
+    id: "fs-1",
+    name: "Лечение кариеса",
+    category: "Терапия",
+    priceLabel: "от 3 500 ₽",
+    icon: "tooth",
+    description: "Безболезненное лечение кариеса с использованием современных пломбировочных материалов",
   },
   {
-    id: "fp-2",
-    name: "Крем двойной омолаживающий. 200 мл",
-    brand: "Dr.PaceLeader",
-    priceLabel: "6 500 ₽",
-    imageUrl: "/images/landing/landing-product-02-antiage.png",
-    fallbackImageUrl: null,
+    id: "fs-2",
+    name: "Профессиональная гигиена",
+    category: "Профилактика",
+    priceLabel: "от 4 500 ₽",
+    icon: "sparkles",
+    description: "Ультразвуковая чистка, Air Flow, полировка и фторирование",
   },
   {
-    id: "fp-3",
-    name: "Солнцезащитный крем SPF50+",
-    brand: "Dr.PaceLeader",
-    priceLabel: "3 390 ₽",
-    imageUrl: "/images/landing/landing-product-03-spf.png",
-    fallbackImageUrl: null,
+    id: "fs-3",
+    name: "Имплантация зубов",
+    category: "Имплантация",
+    priceLabel: "от 35 000 ₽",
+    icon: "implant",
+    description: "Установка имплантов ведущих мировых производителей с пожизненной гарантией",
   },
   {
-    id: "fp-4",
-    name: "Солнцезащитный крем с пептидами",
-    brand: "DERMACHIC",
-    priceLabel: "1 850 ₽",
-    imageUrl: "/images/landing/landing-product-04-peptide.png",
-    fallbackImageUrl: null,
+    id: "fs-4",
+    name: "Виниры и коронки",
+    category: "Эстетика",
+    priceLabel: "от 15 000 ₽",
+    icon: "smile",
+    description: "Керамические и циркониевые виниры для идеальной улыбки",
+  },
+  {
+    id: "fs-5",
+    name: "Удаление зубов",
+    category: "Хирургия",
+    priceLabel: "от 2 500 ₽",
+    icon: "scissors",
+    description: "Простое и сложное удаление, включая зубы мудрости",
+  },
+  {
+    id: "fs-6",
+    name: "Детская стоматология",
+    category: "Детская",
+    priceLabel: "от 2 000 ₽",
+    icon: "baby",
+    description: "Бережное лечение в игровой форме, герметизация фиссур, серебрение",
   },
 ] as const
 
-/**
- * Статичные тизеры курсов для лендинга (когда в БД нет published-курсов).
- * Соответствуют сид-данным из seed-courses.ts.
- */
-export const dibInterfarmFallbackCourses = [
+/** Статичные карточки врачей */
+export const fallbackDoctors = [
   {
-    id: "fc-1",
-    title: "Корейские протоколы ухода за кожей",
-    description:
-      "Полный курс по корейской системе ухода за кожей. 4 модуля, 15 уроков — от философии K-beauty до профессиональных протоколов.",
-    thumbnailUrl: "/images/landing/landing-course-kbeauty.png",
-    slug: "korean-skincare",
-    moduleCount: 4,
+    id: "fd-1",
+    name: "Иванов Алексей Петрович",
+    specialization: "Стоматолог-терапевт",
+    experience: "15 лет",
+    description: "Специалист по лечению кариеса и его осложнений, эндодонтии",
   },
   {
-    id: "fc-2",
-    title: "Основы инъекционной косметологии",
-    description:
-      "Ботулотоксин, филлеры, мезотерапия. 6 модулей, 24 урока для специалистов.",
-    thumbnailUrl: "/images/landing/landing-course-injection.png",
-    slug: "injection-cosmetology",
-    moduleCount: 6,
+    id: "fd-2",
+    name: "Петрова Мария Сергеевна",
+    specialization: "Стоматолог-ортодонт",
+    experience: "12 лет",
+    description: "Исправление прикуса брекетами и элайнерами у детей и взрослых",
   },
   {
-    id: "fc-3",
-    title: "Косметология",
-    description:
-      "Уходовые техники, анализ кожи, работа с пигментацией и пилинги. 5 модулей.",
-    thumbnailUrl: "/images/landing/landing-course-cosmetology.png",
-    slug: "business-cosmetology",
-    moduleCount: 5,
+    id: "fd-3",
+    name: "Сидоров Дмитрий Владимирович",
+    specialization: "Стоматолог-хирург, имплантолог",
+    experience: "18 лет",
+    description: "Имплантация, костная пластика, удаление любой сложности",
   },
 ] as const
 
-/** Локальные иллюстрации для карточек «Косметика» на главной (всегда, данные текста — из БД). */
-export const landingCollectionProductArt: readonly string[] = dibInterfarmFallbackProducts.map(
-  (p) => p.imageUrl,
-)
-
-/** Локальные иллюстрации для карточек «Курсы» на главной. */
-export const landingCollectionCourseArt: readonly string[] = dibInterfarmFallbackCourses.map(
-  (c) => c.thumbnailUrl,
-)
+/** Отзывы для лендинга */
+export const fallbackReviews = [
+  {
+    name: "Светлана К.",
+    text: "Лечила кариес у доктора Иванова — абсолютно безболезненно! Теперь вся семья ходит только сюда.",
+    tag: "Терапия",
+    rating: 5,
+  },
+  {
+    name: "Дмитрий П.",
+    text: "Поставил два импланта. Всё прошло быстро и без осложнений. Рекомендую клинику!",
+    tag: "Имплантация",
+    rating: 5,
+  },
+  {
+    name: "Анна М.",
+    text: "Дочке 6 лет — она теперь сама просится к стоматологу! Врачи умеют найти подход к детям.",
+    tag: "Детская стоматология",
+    rating: 5,
+  },
+  {
+    name: "Олег В.",
+    text: "Профгигиена здесь — лучшая, что я пробовал. Зубы как новые, и цена адекватная.",
+    tag: "Гигиена",
+    rating: 5,
+  },
+] as const

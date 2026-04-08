@@ -22,9 +22,9 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json() as { name?: string; type?: string }
-  const data: { name?: string; type?: "MAIN" | "RETAIL" | "TRANSIT" } = {}
+  const data: { name?: string; type?: "MAIN" | "CABINET" } = {}
   if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim()
-  if (["MAIN", "RETAIL", "TRANSIT"].includes(body.type ?? "")) data.type = body.type as "MAIN" | "RETAIL" | "TRANSIT"
+  if (["MAIN", "CABINET"].includes(body.type ?? "")) data.type = body.type as "MAIN" | "CABINET"
 
   const warehouse = await prisma.warehouse.update({ where: { id }, data })
   return NextResponse.json({

@@ -1,6 +1,6 @@
 # ============================================
-# Multi-stage Dockerfile for Next.js (standalone)
-# Оптимизирован для production-деплоя
+# Multi-stage Dockerfile for ДаоДент CRM
+# Next.js 16 (standalone) + Prisma + PostgreSQL
 # ============================================
 
 # --- Stage 1: Install dependencies ---
@@ -19,8 +19,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build-time environment variables (можно переопределить при сборке)
-ARG NEXT_PUBLIC_APP_URL=https://dibinterfarm.ru
+ARG NEXT_PUBLIC_APP_URL=https://daodent.ru
 ARG DATABASE_URL=""
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -34,22 +33,22 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Не запускаем от root
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Копируем standalone-сборку
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Prisma schema + CLI для миграций (prisma db push)
+# Prisma + миграции
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
 
+# Seed-скрипт
+COPY --from=builder /app/scripts ./scripts
+
 USER nextjs
 
-# Порт задаётся через переменную окружения
 ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 EXPOSE 3001

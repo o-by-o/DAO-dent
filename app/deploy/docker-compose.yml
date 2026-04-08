@@ -4,7 +4,7 @@ services:
     container_name: nginx-proxy
     restart: unless-stopped
     depends_on:
-      - school-cosmo
+      - daodent
     ports:
       - "80:80"
       - "443:443"
@@ -27,28 +27,43 @@ services:
     networks:
       - frontend
 
-  school-cosmo:
+  daodent:
     build:
       context: ..
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_APP_URL: ${NEXTAUTH_URL}
         DATABASE_URL: ${DATABASE_URL}
-    container_name: school-cosmo
+    container_name: daodent
     restart: unless-stopped
     env_file:
       - .env
     environment:
       PORT: 3001
       NODE_ENV: production
-      LESSON_MATERIALS_DIR: /app/uploads/lesson-materials
     expose:
       - "3001"
+    networks:
+      - frontend
+
+  db:
+    image: postgres:16-alpine
+    container_name: daodent-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: daodent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
-      - ./uploads:/app/uploads
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
     networks:
       - frontend
 
 networks:
   frontend:
     driver: bridge
+
+volumes:
+  pgdata:

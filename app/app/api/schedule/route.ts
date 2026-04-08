@@ -4,17 +4,16 @@ import { NextResponse } from "next/server"
 
 export interface ScheduleEvent {
   id: string
-  type: "call" | "birthday" | "stock" | "expiry" | "order" | "note"
+  type: "call" | "birthday" | "stock" | "expiry" | "note"
   title: string
   date: string      // ISO
   time?: string     // "HH:mm"
   color: string
   meta?: {
-    clientId?: string
-    clientName?: string
+    patientId?: string
+    patientName?: string
     noteText?: string
     noteId?: string
-    orderId?: string
     documentNumber?: string
     productName?: string
   }
@@ -28,7 +27,8 @@ export async function GET(req: Request) {
   }
 
   const userId = session.user.id
-  const isAdmin = (session.user as { role?: string }).role === "ADMIN"
+  const role = (session.user as { role?: string }).role
+  const isAdmin = role === "OWNER" || role === "MANAGER" || role === "ADMIN"
   const { searchParams } = new URL(req.url)
   const monthParam = searchParams.get("month") // "2026-04"
   const now = new Date()
@@ -60,49 +60,49 @@ export async function GET(req: Request) {
     })
   }
 
-  // 2. Call reminders (own clients for STUDENT, all for ADMIN)
+  // 2. Call reminders (patient notes with callAt)
   const noteWhere = isAdmin
     ? { callAt: { gte: start, lte: end } }
-    : { callAt: { gte: start, lte: end }, client: { ownerId: userId } }
+    : { callAt: { gte: start, lte: end }, patient: { doctorId: userId } }
 
-  const clientNotes = await prisma.clientNote.findMany({
+  const patientNotes = await prisma.patientNote.findMany({
     where: noteWhere,
-    include: { client: { select: { id: true, name: true } } },
+    include: { patient: { select: { id: true, firstName: true, lastName: true } } },
     orderBy: { callAt: "asc" },
   })
-  for (const n of clientNotes) {
+  for (const n of patientNotes) {
     const t = n.callAt!
     events.push({
       id: `call-${n.id}`,
       type: "call",
-      title: `Звонок: ${n.client.name}`,
+      title: `Звонок: ${n.patient.lastName} ${n.patient.firstName}`,
       date: t.toISOString(),
       time: `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`,
       color: "#3b82f6",
-      meta: { clientId: n.client.id, clientName: n.client.name, noteText: n.text },
+      meta: { patientId: n.patient.id, patientName: `${n.patient.lastName} ${n.patient.firstName}`, noteText: n.text },
     })
   }
 
-  // 3. Birthdays
-  const clientWhere = isAdmin
+  // 3. Patient birthdays
+  const patientBdayWhere = isAdmin
     ? { birthDate: { not: null } }
-    : { ownerId: userId, birthDate: { not: null } }
+    : { doctorId: userId, birthDate: { not: null } }
 
-  const clients = await prisma.client.findMany({
-    where: clientWhere,
-    select: { id: true, name: true, birthDate: true },
+  const patients = await prisma.patient.findMany({
+    where: patientBdayWhere as Record<string, unknown>,
+    select: { id: true, firstName: true, lastName: true, birthDate: true },
   })
-  for (const c of clients) {
-    if (!c.birthDate) continue
-    if (c.birthDate.getMonth() === month) {
-      const bd = new Date(year, month, c.birthDate.getDate())
+  for (const p of patients) {
+    if (!p.birthDate) continue
+    if (p.birthDate.getMonth() === month) {
+      const bd = new Date(year, month, p.birthDate.getDate())
       events.push({
-        id: `bday-${c.id}`,
+        id: `bday-${p.id}`,
         type: "birthday",
-        title: `ДР: ${c.name}`,
+        title: `ДР: ${p.lastName} ${p.firstName}`,
         date: bd.toISOString(),
         color: "#ec4899",
-        meta: { clientId: c.id, clientName: c.name },
+        meta: { patientId: p.id },
       })
     }
   }
@@ -149,27 +149,6 @@ export async function GET(req: Request) {
       date: b.expiryDate!.toISOString(),
       color: "#f97316",
       meta: { productName: b.product.name },
-    })
-  }
-
-  // 6. Orders this month
-  const orderWhere = isAdmin
-    ? { createdAt: { gte: start, lte: end } }
-    : { userId, createdAt: { gte: start, lte: end } }
-
-  const orders = await prisma.order.findMany({
-    where: orderWhere,
-    select: { id: true, orderNumber: true, totalAmount: true, createdAt: true, status: true },
-    orderBy: { createdAt: "asc" },
-  })
-  for (const o of orders) {
-    events.push({
-      id: `order-${o.id}`,
-      type: "order",
-      title: `Заказ ${o.orderNumber}`,
-      date: o.createdAt.toISOString(),
-      color: "#8b5cf6",
-      meta: { orderId: o.id },
     })
   }
 

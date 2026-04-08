@@ -7,7 +7,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
-    <DashboardLayout activePath={pathname} isAdmin>
+    <DashboardLayout activePath={pathname} role="OWNER">
       {children}
     </DashboardLayout>
   )

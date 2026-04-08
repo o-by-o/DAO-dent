@@ -11,7 +11,10 @@ export default async function AdminLayout({
 }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
-  if ((session.user as { role?: string }).role !== "ADMIN") {
+
+  const role = (session.user as { role?: string }).role
+  // Владелец и управляющий имеют доступ к админке
+  if (role !== "OWNER" && role !== "MANAGER") {
     redirect("/home")
   }
 

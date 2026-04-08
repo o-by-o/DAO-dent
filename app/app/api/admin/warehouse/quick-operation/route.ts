@@ -45,11 +45,11 @@ export async function POST(req: Request) {
   // Собираем комментарий
   const parts: string[] = []
   if (clientId) {
-    const client = await prisma.client.findUnique({
+    const patient = await prisma.patient.findUnique({
       where: { id: clientId },
-      select: { name: true },
+      select: { firstName: true, lastName: true },
     })
-    if (client) parts.push(`Клиент: ${client.name}`)
+    if (patient) parts.push(`Пациент: ${patient.lastName} ${patient.firstName}`)
   }
   if (comment) parts.push(comment)
 

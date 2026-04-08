@@ -16,16 +16,16 @@ interface MobileNavCardProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   activePath?: string
-  isAdmin?: boolean
+  role?: string
 }
 
 export function MobileNavCard({
   open,
   onOpenChange,
   activePath = "/home",
-  isAdmin = false,
+  role = "ADMIN",
 }: MobileNavCardProps) {
-  const mainItems = getMainNavItems(isAdmin)
+  const mainItems = getMainNavItems(role)
 
   const renderLink = (item: (typeof mainItems)[number] | (typeof navItemsBottom)[number]) => {
     const Icon = item.icon

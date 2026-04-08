@@ -57,7 +57,7 @@ function LoginForm() {
         <div className="flex flex-col items-center gap-3">
           <BrandLogo withBackground className="h-auto w-[250px]" />
           <p className="text-sm text-muted-foreground">
-            Войдите в личный кабинет
+            CRM-система клиники ДаоДент
           </p>
         </div>
 

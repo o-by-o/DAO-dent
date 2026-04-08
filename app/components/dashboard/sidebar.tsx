@@ -16,6 +16,7 @@ import { LogOut, PanelLeftClose, PanelLeftOpen, CalendarDays } from "lucide-reac
 import { BrandLogo } from "@/components/brand-logo"
 import { SidebarCalendar } from "@/components/dashboard/sidebar-calendar"
 import { getMainNavItems, navItemsBottom } from "@/lib/dashboard-nav"
+import type { Role } from "@prisma/client"
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -28,8 +29,8 @@ interface SidebarProps {
   collapsed: boolean
   /** Toggle collapsed state */
   onToggleCollapse: () => void
-  /** Show admin link (Управление пользователями) */
-  isAdmin?: boolean
+  /** Роль пользователя */
+  role?: string
 }
 
 /* ------------------------------------------------------------------ */
@@ -40,9 +41,9 @@ export function Sidebar({
   activePath = "/home",
   collapsed,
   onToggleCollapse,
-  isAdmin = false,
+  role = "ADMIN",
 }: SidebarProps) {
-  const navItems = getMainNavItems(isAdmin)
+  const navItems = getMainNavItems(role)
   const handleLogout = useCallback(() => {
     signOut({ callbackUrl: "/login" })
   }, [])
